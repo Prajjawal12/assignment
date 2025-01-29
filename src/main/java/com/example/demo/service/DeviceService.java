@@ -10,7 +10,7 @@ public interface DeviceService {
 
   public Map<String, Object> getDevice(long deviceId);
 
-  public Map<String, Object> modifyDevice(long deviceId, String name);
+  public Map<String, Object> modifyDevice(Long id, Device device);
 
   public long deleteDevice(long deviceId);
 }

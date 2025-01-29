@@ -9,8 +9,7 @@ import lombok.Data;
 
 @Node
 @Data
-
-public class Device {
+public class ShelfV0 {
 
   @Id
   @GeneratedValue
@@ -18,8 +17,10 @@ public class Device {
 
   private String name;
 
-  private String deviceType;
-  @Relationship(type = "HAS", direction = Relationship.Direction.OUTGOING)
-  private ShelfPositionV0 shelfPositionV0;
+  private String shelfType;
 
+  private long shelfPositionId;
+
+  @Relationship(type = "HAS", direction = Relationship.Direction.OUTGOING)
+  private ShelfV0 shelfV0;
 }

@@ -3,6 +3,7 @@ package com.example.demo.config;
 import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.GraphDatabase;
+
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
@@ -20,9 +21,10 @@ public class DatabaseConfig {
 
   public static boolean checkConnection() {
     try (Driver driver = getDriver()) {
+
       driver.verifyConnectivity();
-    }catch(Exception e) {
-      System.out.println(e.getMessage());
+    } catch (Exception e) {
+
       return false;
     }
     return true;
