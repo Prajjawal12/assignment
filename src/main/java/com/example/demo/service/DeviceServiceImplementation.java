@@ -14,20 +14,26 @@ import com.example.demo.entity.Device;
 @Service
 public class DeviceServiceImplementation implements DeviceService {
 
+  // Logger for logging relevant information
   private static final Logger logger = LoggerFactory.getLogger(DeviceServiceImplementation.class);
+
+  // Neo4j driver instance for interacting with the Neo4j database
   private final Driver driver = DatabaseConfig.getDriver();
 
   @Override
   public Map<String, Object> saveDevice(Device device) {
     logger.info("Saving device with ID: {}", device.getId());
     try (var session = driver.session()) {
+      // Perform write transaction to save the device
       var res = session.executeWrite(tx -> {
+
         String query = """
             MERGE (d:Device {id:$deviceId})
             SET d.name = $deviceName, d.deviceType = $deviceType
             RETURN d AS savedDevice
                """;
 
+        // Execute the query and capture the result
         var record = tx.run(query, Values.parameters("deviceId", device.getId(),
             "deviceName", device.getName(), "deviceType", device.getDeviceType())).single();
 
@@ -51,6 +57,7 @@ public class DeviceServiceImplementation implements DeviceService {
             MATCH (d:Device {id:$deviceId})
             RETURN d AS deviceFound
               """;
+        // Perform read transaction to fetch the device by ID
 
         var record = tx.run(query, Values.parameters("deviceId", deviceId)).single();
 
@@ -63,8 +70,8 @@ public class DeviceServiceImplementation implements DeviceService {
         return record.get("deviceFound").asNode().asMap();
       });
       return res;
-    } catch (DeviceNotFoundException e) {
-      logger.error("Device not found: {}", e.getMessage());
+    } catch (Exception e) {
+      logger.error("Error while fetching device: {}", e.getMessage(), e);
       throw e;
     }
   }
@@ -73,6 +80,7 @@ public class DeviceServiceImplementation implements DeviceService {
   public Map<String, Object> modifyDevice(Long id, Device device) {
     logger.info("Modifying device with ID: {}", id);
     try (var session = driver.session()) {
+      // Perform write transaction to modify the device by its ID
       var res = session.executeWrite(tx -> {
         String query = """
             MATCH (d:Device {id: $deviceId})
@@ -97,6 +105,7 @@ public class DeviceServiceImplementation implements DeviceService {
   public long deleteDevice(long deviceId) {
     logger.info("Deleting device with ID: {}", deviceId);
     try (var session = driver.session()) {
+      // Perform write transaction to delete the device by its ID
       var res = session.executeWrite((tx) -> {
         String query = """
             MATCH (d:Device {id:$deviceId})
@@ -116,8 +125,8 @@ public class DeviceServiceImplementation implements DeviceService {
         return record.get("deviceIdDeleted").asLong();
       });
       return res;
-    } catch (DeviceNotFoundException e) {
-      logger.error("Device not found: {}", e.getMessage());
+    } catch (Exception e) {
+      logger.error("Error while deleting device: {}", e.getMessage(), e);
       throw e;
     }
   }
