@@ -5,9 +5,9 @@ import org.neo4j.driver.Driver;
 import org.neo4j.driver.Values;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.example.demo.config.DatabaseConfig;
 import com.example.demo.customExceptions.DeviceNotFoundException;
 import com.example.demo.entity.Device;
 
@@ -18,7 +18,12 @@ public class DeviceServiceImplementation implements DeviceService {
   private static final Logger logger = LoggerFactory.getLogger(DeviceServiceImplementation.class);
 
   // Neo4j driver instance for interacting with the Neo4j database
-  private final Driver driver = DatabaseConfig.getDriver();
+  private final Driver driver;
+
+  @Autowired
+  public DeviceServiceImplementation(Driver driver) {
+    this.driver = driver;
+  }
 
   @Override
   public Map<String, Object> saveDevice(Device device) {
@@ -26,7 +31,6 @@ public class DeviceServiceImplementation implements DeviceService {
     try (var session = driver.session()) {
       // Perform write transaction to save the device
       var res = session.executeWrite(tx -> {
-
         String query = """
             MERGE (d:Device {id:$deviceId})
             SET d.name = $deviceName, d.deviceType = $deviceType
@@ -41,7 +45,6 @@ public class DeviceServiceImplementation implements DeviceService {
         return record.get("savedDevice").asNode().asMap();
       });
       return res;
-
     } catch (Exception e) {
       logger.error("Error while saving device: {}", e.getMessage(), e);
       throw e;
@@ -59,20 +62,23 @@ public class DeviceServiceImplementation implements DeviceService {
               """;
         // Perform read transaction to fetch the device by ID
 
-        var record = tx.run(query, Values.parameters("deviceId", deviceId)).single();
+        var record = tx.run(query, Values.parameters("deviceId", deviceId));
 
-        if (record == null) {
+        if (!record.hasNext()) {
           logger.warn("Device with ID {} not found", deviceId);
           throw new DeviceNotFoundException("Device with ID " + deviceId + " not found.");
         }
 
         logger.info("Device with ID {} fetched successfully", deviceId);
-        return record.get("deviceFound").asNode().asMap();
+        return record.single().get("deviceFound").asNode().asMap();
       });
       return res;
+    } catch (DeviceNotFoundException e) {
+      logger.error("Device not found with ID {}: {}", deviceId, e.getMessage());
+      throw e; // Rethrow the custom exception
     } catch (Exception e) {
       logger.error("Error while fetching device: {}", e.getMessage(), e);
-      throw e;
+      throw e; // Rethrow the exception if it's not a DeviceNotFoundException
     }
   }
 
@@ -106,7 +112,7 @@ public class DeviceServiceImplementation implements DeviceService {
     logger.info("Deleting device with ID: {}", deviceId);
     try (var session = driver.session()) {
       // Perform write transaction to delete the device by its ID
-      var res = session.executeWrite((tx) -> {
+      var res = session.executeWrite(tx -> {
         String query = """
             MATCH (d:Device {id:$deviceId})
             WITH d, d.id AS deviceIdDeleted
@@ -114,20 +120,23 @@ public class DeviceServiceImplementation implements DeviceService {
             RETURN deviceIdDeleted;
                 """;
 
-        var record = tx.run(query, Values.parameters("deviceId", deviceId)).single();
+        var record = tx.run(query, Values.parameters("deviceId", deviceId));
 
-        if (record == null) {
+        if (!record.hasNext()) {
           logger.warn("Device with ID {} not found for deletion", deviceId);
           throw new DeviceNotFoundException("Device with ID " + deviceId + " not found.");
         }
 
         logger.info("Device with ID {} deleted successfully", deviceId);
-        return record.get("deviceIdDeleted").asLong();
+        return record.single().get("deviceIdDeleted").asLong();
       });
       return res;
+    } catch (DeviceNotFoundException e) {
+      logger.error("Device not found with ID {}: {}", deviceId, e.getMessage());
+      throw e; // Rethrow the custom exception
     } catch (Exception e) {
       logger.error("Error while deleting device: {}", e.getMessage(), e);
-      throw e;
+      throw e; // Rethrow the exception if it's not a DeviceNotFoundException
     }
   }
 }

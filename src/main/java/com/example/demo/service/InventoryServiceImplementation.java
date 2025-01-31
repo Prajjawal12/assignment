@@ -5,8 +5,8 @@ import org.neo4j.driver.Driver;
 import org.neo4j.driver.Values;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import com.example.demo.config.DatabaseConfig;
 import com.example.demo.customExceptions.RecordNotFoundException;
 import com.example.demo.entity.ShelfPositionV0;
 import com.example.demo.entity.ShelfV0;
@@ -14,29 +14,40 @@ import com.example.demo.entity.ShelfV0;
 @Service
 public class InventoryServiceImplementation implements InventoryService {
   private static final Logger logger = LoggerFactory.getLogger(InventoryServiceImplementation.class);
-  private final Driver driver = DatabaseConfig.getDriver();
+  private final Driver driver;
+
+  @Autowired
+  public InventoryServiceImplementation(Driver driver) {
+    this.driver = driver;
+  }
 
   // Save a new shelf to the database
   @Override
   public Map<String, Object> saveShelf(ShelfV0 shelf) {
     logger.info("Saving shelf with ID: {}", shelf.getId());
     try (var session = driver.session()) {
-      var res = session.executeWrite((tx) -> {
+      return session.executeWrite((tx) -> {
         String query = """
             MERGE (s:ShelfV0 {id:$shelfId})
-            SET s.name = $shelfName
+            SET s.name = $shelfName, s.shelfType = $shelfType
             RETURN s AS savedShelf;
             """;
 
         var record = tx.run(query, Values.parameters("shelfId", shelf.getId(), "shelfName", shelf.getName(),
             "shelfType", shelf.getShelfType()));
 
+        if (!record.hasNext()) {
+          throw new RecordNotFoundException("Failed to save Shelf with ID: " + shelf.getId());
+        }
+
         logger.info("Shelf with ID {} saved successfully", shelf.getId());
         return record.single().get("savedShelf").asNode().asMap();
       });
-      return res;
+    } catch (RecordNotFoundException e) {
+      logger.warn(e.getMessage(), e);
+      throw e;
     } catch (Exception e) {
-      logger.error("Error while saving shelf with ID {}: {}", shelf.getId(), e.getMessage(), e);
+      logger.error("Unexpected error while saving shelf with ID {}: {}", shelf.getId(), e.getMessage(), e);
       throw e;
     }
   }
@@ -46,14 +57,14 @@ public class InventoryServiceImplementation implements InventoryService {
   public Map<String, Object> getShelf(Long shelfId) {
     logger.info("Fetching shelf with ID: {}", shelfId);
     try (var session = driver.session()) {
-      var res = session.executeRead(tx -> {
+      return session.executeRead(tx -> {
         String query = """
             MATCH (s:ShelfV0 {id:$shelfId})
             RETURN s;
             """;
 
         var record = tx.run(query, Values.parameters("shelfId", shelfId));
-        if (record == null) {
+        if (!record.hasNext()) {
           logger.warn("Shelf with ID {} not found", shelfId);
           throw new RecordNotFoundException("No ShelfV0 is present with the id: " + shelfId);
         }
@@ -61,9 +72,11 @@ public class InventoryServiceImplementation implements InventoryService {
         logger.info("Shelf with ID {} fetched successfully", shelfId);
         return record.single().get("s").asNode().asMap();
       });
-      return res;
+    } catch (RecordNotFoundException e) {
+      logger.warn(e.getMessage(), e);
+      throw e;
     } catch (Exception e) {
-      logger.error("Error while fetching shelf with ID {}: {}", shelfId, e.getMessage(), e);
+      logger.error("Unexpected error while fetching shelf with ID {}: {}", shelfId, e.getMessage(), e);
       throw e;
     }
   }
@@ -73,7 +86,7 @@ public class InventoryServiceImplementation implements InventoryService {
   public Map<String, Object> saveShelfPosition(ShelfPositionV0 shelfPosition) {
     logger.info("Saving shelf position with ID: {}", shelfPosition.getId());
     try (var session = driver.session()) {
-      var res = session.executeWrite(tx -> {
+      return session.executeWrite(tx -> {
         String query = """
             MERGE (s:ShelfPositionV0 {id:$shelfPositionId})
             SET s.name = $shelfPositionName
@@ -84,12 +97,19 @@ public class InventoryServiceImplementation implements InventoryService {
             "shelfPositionId", shelfPosition.getId(),
             "shelfPositionName", shelfPosition.getName()));
 
+        if (!record.hasNext()) {
+          throw new RecordNotFoundException("Failed to save Shelf Position with ID: " + shelfPosition.getId());
+        }
+
         logger.info("Shelf position with ID {} saved successfully", shelfPosition.getId());
         return record.single().get("shelfPositionName").asNode().asMap();
       });
-      return res;
+    } catch (RecordNotFoundException e) {
+      logger.warn(e.getMessage(), e);
+      throw e;
     } catch (Exception e) {
-      logger.error("Error while saving shelf position with ID {}: {}", shelfPosition.getId(), e.getMessage(), e);
+      logger.error("Unexpected error while saving shelf position with ID {}: {}", shelfPosition.getId(), e.getMessage(),
+          e);
       throw e;
     }
   }
@@ -99,22 +119,24 @@ public class InventoryServiceImplementation implements InventoryService {
   public Map<String, Object> getShelfPosition(long shelfPositionId) {
     logger.info("Fetching shelf position with ID: {}", shelfPositionId);
     try (var session = driver.session()) {
-      var res = session.executeRead(tx -> {
+      return session.executeRead(tx -> {
         String query = """
             MATCH (s:ShelfPositionV0 {id:$shelfPositionId})
             RETURN s;
             """;
         var record = tx.run(query, Values.parameters("shelfPositionId", shelfPositionId));
-        if (record == null) {
+        if (!record.hasNext()) {
           logger.warn("Shelf position with ID {} not found", shelfPositionId);
           throw new RecordNotFoundException("No ShelfPositionV0 is present with the id: " + shelfPositionId);
         }
         logger.info("Shelf position with ID {} fetched successfully", shelfPositionId);
         return record.single().get("s").asNode().asMap();
       });
-      return res;
+    } catch (RecordNotFoundException e) {
+      logger.warn(e.getMessage(), e);
+      throw e;
     } catch (Exception e) {
-      logger.error("Error while fetching shelf position with ID {}: {}", shelfPositionId, e.getMessage(), e);
+      logger.error("Unexpected error while fetching shelf position with ID {}: {}", shelfPositionId, e.getMessage(), e);
       throw e;
     }
   }
