@@ -12,6 +12,7 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import static org.junit.jupiter.api.Assertions.*;
 // The driver is injected and used internally by the DeviceServiceImplementation, so it's not directly used in the test methods.
+import org.junit.jupiter.api.AfterEach;
 
 @ExtendWith(SpringExtension.class)
 @SpringBootTest
@@ -28,8 +29,22 @@ class DeviceServiceImplementationTest {
   @BeforeEach
   void setUp() {
     testDevice = new Device();
+    testDevice.setId(1055L);
     testDevice.setName("Test Device");
     testDevice.setDeviceType("Smartphone");
+  }
+
+  @AfterEach
+  void tearDown() {
+    // Delete the device created in the test if it exists
+    try {
+      if (testDevice.getId() > 0) {
+        deviceService.deleteDevice(testDevice.getId());
+      }
+    } catch (DeviceNotFoundException e) {
+      // Ignore if the device doesn't exist (already deleted)
+
+    }
   }
 
   @Test
@@ -37,6 +52,7 @@ class DeviceServiceImplementationTest {
     // Test saveDevice method
     var result = deviceService.saveDevice(testDevice);
     assertNotNull(result);
+    assertEquals(testDevice.getId(), result.get("id"));
     assertEquals(testDevice.getName(), result.get("name"));
     assertEquals(testDevice.getDeviceType(), result.get("deviceType"));
   }
@@ -50,6 +66,7 @@ class DeviceServiceImplementationTest {
     // Test getDevice method
     var result = deviceService.getDevice(deviceId);
     assertNotNull(result);
+    assertEquals(testDevice.getId(), result.get("id"));
     assertEquals(testDevice.getName(), result.get("name"));
     assertEquals(testDevice.getDeviceType(), result.get("deviceType"));
   }

@@ -7,11 +7,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.neo4j.driver.Driver;
+import org.neo4j.driver.Values;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import static org.junit.jupiter.api.Assertions.*;
+
+import org.junit.jupiter.api.AfterEach;
 
 @ExtendWith(SpringExtension.class)
 @SpringBootTest
@@ -37,7 +40,7 @@ class InventoryServiceImplementationTest {
     // Create test shelf position
     testShelfPosition = new ShelfPositionV0();
     testShelfPosition.setId(1L);
-    testShelfPosition.setName("Position 1");
+    testShelfPosition.setName("Position 10009");
   }
 
   @Test
@@ -111,5 +114,37 @@ class InventoryServiceImplementationTest {
     inventoryService.saveShelfPosition(testShelfPosition);
     assertDoesNotThrow(() -> inventoryService.addShelfToShelfPosition(testShelf.getId(), testShelfPosition.getId()),
         "Should not throw an exception when adding a shelf to a valid shelf position");
+  }
+
+  @AfterEach
+  void tearDown() {
+    deleteShelf(testShelf.getId());
+    deleteShelfPosition(testShelfPosition.getId());
+  }
+
+  // Helper delete method for Shelf
+  private void deleteShelf(long shelfId) {
+    try (var session = driver.session()) {
+      String query = """
+          MATCH (s:ShelfV0 {id:$shelfId})
+          DETACH DELETE s
+          """;
+      session.run(query, Values.parameters("shelfId", shelfId));
+    } catch (Exception e) {
+      e.printStackTrace(); // Or just print the exception if needed
+    }
+  }
+
+  // Helper delete method for Shelf Position
+  private void deleteShelfPosition(long shelfPositionId) {
+    try (var session = driver.session()) {
+      String query = """
+          MATCH (sp:ShelfPositionV0 {id:$shelfPositionId})
+          DETACH DELETE sp
+          """;
+      session.run(query, Values.parameters("shelfPositionId", shelfPositionId));
+    } catch (Exception e) {
+      e.printStackTrace(); // Or just print the exception if needed
+    }
   }
 }
