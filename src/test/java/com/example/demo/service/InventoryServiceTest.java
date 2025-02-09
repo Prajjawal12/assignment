@@ -131,7 +131,7 @@ class InventoryServiceImplementationTest {
           """;
       session.run(query, Values.parameters("shelfId", shelfId));
     } catch (Exception e) {
-      e.printStackTrace(); // Or just print the exception if needed
+      e.printStackTrace();
     }
   }
 
@@ -144,7 +144,7 @@ class InventoryServiceImplementationTest {
           """;
       session.run(query, Values.parameters("shelfPositionId", shelfPositionId));
     } catch (Exception e) {
-      e.printStackTrace(); // Or just print the exception if needed
+      e.printStackTrace();
     }
   }
 }
