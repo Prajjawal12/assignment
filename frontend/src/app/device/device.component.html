@@ -1,0 +1,43 @@
+<div class="device-container">
+  <div class="device-buttons">
+    <button (click)="showSaveForm()">Save Device</button>
+    <button (click)="showModifyForm()">Modify Device</button>
+    <button (click)="showGetForm()">Get Device By Id</button>
+    <button (click)="showDeleteForm()">Delete Device</button>
+  </div>
+
+  <div class="device-form" *ngIf="showForm">
+    <ng-container *ngIf="formType === 'save'">
+      <h2>Save Device</h2>
+      <form>
+        <input type="text" placeholder="ID" [(ngModel)]="device.id" name="id" required><br>
+        <input type="text" placeholder="Name" [(ngModel)]="device.name" name="name" required><br>
+        <input type="text" placeholder="Device Type" [(ngModel)]="device.deviceType" name="deviceType" required><br>
+        <button type="submit" (click)="onSubmit()">Submit</button>
+        <button type="button" (click)="hideForm()">Cancel</button>
+      </form>
+    </ng-container>
+
+
+
+    <ng-container *ngIf="formType === 'modify'">
+      <h2>Modify Device</h2>
+      <form>
+        <input type="text" placeholder="ID" [(ngModel)]="device.id" name="id" required><br>
+        <input type="text" placeholder="New Name" [(ngModel)]="device.name" name="name" required><br>
+        <input type="text" placeholder="New Device Type" [(ngModel)]="device.deviceType" name="deviceType" required><br>
+        <button type="submit" (click)="onSubmit()">Submit</button>
+        <button type="button" (click)="hideForm()">Cancel</button>
+      </form>
+    </ng-container>
+
+    <ng-container *ngIf="formType === 'get' || formType === 'delete' ">
+      <h2>{{formType === 'get' ? 'Get Device' : 'Delete Device'}}</h2>
+      <form>
+        <input type="text" placeholder="ID" [(ngModel)]="deviceId" name="deviceId" required><br>
+        <button type="submit" (click)="onSubmit()">Submit</button>
+        <button type="button" (click)="hideForm()">Cancel</button>
+      </form>
+    </ng-container>
+  </div>
+</div>
