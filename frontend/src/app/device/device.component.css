@@ -6,9 +6,9 @@
 }
 
 .device-buttons {
-display: flex;
-gap: 10px;
-margin-bottom: 20px;
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
 
 }
 
@@ -20,11 +20,15 @@ margin-bottom: 20px;
 
 }
 
+
+
 .device-form input {
   margin-bottom: 10px;
   padding: 5px;
   border: 1px solid #ccc;
   border-radius: 3px;
+  width: 100%;
+
 }
 
 .device-form button {

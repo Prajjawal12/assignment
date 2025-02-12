@@ -1,1 +1,98 @@
-<p>inventory works!</p>
+<div class="inventory-container">
+    <div class="inventory-buttons">
+        <button (click)="showSaveShelfForm()">Save Shelf</button>
+        <button (click)="showGetShelfForm()">Get Shelf</button>
+        <button (click)="showSaveShelfPositionForm()">Save Shelf Position</button>
+        <button (click)="showGetShelfPositionForm()">Get Shelf Position</button>
+        <button (click)="showAddShelfPositionToDevice()">Add Shelf Position To Device</button>
+        <button (click)="showAddShelfToShelfPositionForm()">Add Shelf to Shelf Position</button>
+    </div>
+
+    <div class="inventory-form" *ngIf="showForm">
+        <!--Save Shelf Form-->
+        <ng-container *ngIf="formType === 'saveShelf'">
+            <h2>
+                Save Shelf
+            </h2>
+            <form>
+                <input type="text" placeholder="ID" [(ngModel)]="shelfv0.id" name="id" required>
+                <br>
+                <input type="text" [(ngModel)]="shelfv0.name" placeholder="Shelf Name" name="name" required>
+                <br>
+                <input type="text" [(ngModel)]="shelfv0.shelfType" name="shelfType" placeholder="Shelf Type" required>
+                <br>
+                <button type="submit" (click)="onSubmit()">Submit</button>
+                <button type="button" (click)="hideform()">Cancel</button>
+            </form>
+        </ng-container>
+
+        <!--Save Shelf Position Form-->
+        <ng-container *ngIf="formType === 'saveShelfPosition'">
+            <h2>Save Shelf Position</h2>
+            <form>
+                <input type="text" [(ngModel)]="shelfPositionv0.id" name="id" required>
+                <br>
+                <input type="text" [(ngModel)]="shelfPositionv0.name" name="name" required>
+                <br>
+                <button type="submit" (click)="onSubmit()">Submit</button>
+                <button type="button" (click)="hideform()">Cancel</button>
+            </form>
+        </ng-container>
+        <!--Get Shelf Form-->
+        <ng-container *ngIf="formType === 'getShelf'">
+            <h2>Get Shelf</h2>
+            <form>
+                <input type="text" placeholder="ID" [(ngModel)]="sheflv0Id" name="id" required>
+                <br>
+
+                <button type="submit" (click)="onSubmit()">Submit</button>
+                <button type="button" (click)="hideform()">Cancel</button>
+            </form>
+        </ng-container>
+
+        <!--Get Shelf Position-->
+        <ng-container *ngIf="formType == 'getShelfPosition'">
+            <form>
+                <h2>Get Shelf Position
+                </h2>
+                <input type="text" [(ngModel)]="shelfPositionv0Id" name="id" required>
+                <br>
+                <button type="submit" (click)="onSubmit()">Submit</button>
+                <button type="button" (click)="hideform()">Cancel</button>
+            </form>
+        </ng-container>
+
+        <!--Add Shelf Position To Device-->
+        <ng-container *ngIf="formType === 'addShelfPositionToDevice'">
+            <h2>Add Shelf position to Device</h2>
+
+            <form>
+                <input type="text" placeholder="Shelf Position ID" required [(ngModel)]="shelfPositionv0Id" name="shelf position 
+                    id">
+                <br>
+
+                <input type="text" placeholder="Device Id" required [(ngModel)]="deviceId" name=" device id">
+                <br>
+                <button type="submit" (click)="onSubmit()">Submit</button>
+                <button type="button" (click)="hideform()">Cancel</button>
+            </form>
+
+        </ng-container>
+
+
+        <!--Add Shelf To Shelf Position-->
+        <ng-container *ngIf=" formType === 'addShelfToShelfPosition'">
+            <h2>Add Shelf to Shelf Position</h2>
+            <form>
+                <input type="text" placeholder="Shelf Id" [(ngModel)]="sheflv0Id" name="Shelf Id" required>
+                <br>
+                <input type="text" placeholder="Shelf Position Id" name="Shelf Position Id" required
+                    [(ngModel)]="shelfPositionv0Id">
+                <br>
+                <button type="submit" (click)="onSubmit()">Submit</button>
+                <button type="button" (click)="hideform()">Cancel</button>
+            </form>
+        </ng-container>
+
+    </div>
+</div>

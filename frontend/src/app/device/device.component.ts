@@ -12,7 +12,7 @@ export class DeviceComponent {
   showForm = false;
   formType: 'save' | 'modify' | 'get' | 'delete' = 'save';
   device = { id: NaN, name: '', deviceType: '' }
-  deviceId: number = this.device.id;
+  deviceId: number = NaN;
 
   constructor(private deviceService: DeviceService) { }
 

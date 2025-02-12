@@ -23,7 +23,7 @@
     <ng-container *ngIf="formType === 'modify'">
       <h2>Modify Device</h2>
       <form>
-        <input type="text" placeholder="ID" [(ngModel)]="device.id" name="id" required><br>
+        <input type="text" placeholder="ID" [(ngModel)]="deviceId" name="id" required><br>
         <input type="text" placeholder="New Name" [(ngModel)]="device.name" name="name" required><br>
         <input type="text" placeholder="New Device Type" [(ngModel)]="device.deviceType" name="deviceType" required><br>
         <button type="submit" (click)="onSubmit()">Submit</button>
