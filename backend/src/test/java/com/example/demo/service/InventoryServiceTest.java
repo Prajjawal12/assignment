@@ -5,18 +5,15 @@ import com.example.demo.entity.ShelfV0;
 import com.example.demo.customExceptions.RecordNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Values;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.api.AfterEach;
 
-@ExtendWith(SpringExtension.class)
 @SpringBootTest
 class InventoryServiceImplementationTest {
 

@@ -24,7 +24,7 @@ export class InventoryService {
   getShelfPosition(id: number): Observable<ShelfPositionV0> {
     return this.http.get<ShelfPositionV0>(`${this.apiUrl}/shelf-position/${id}`);
   }
-  addShelfPositionToDevice(shelfPositionId: number, deviceId: number): Observable<void> {
+  addShelfPositionToDevice(deviceId: number, shelfPositionId: number): Observable<void> {
     const params = new HttpParams()
       .set('deviceId', deviceId.toString())
       .set('shelfPositionId', shelfPositionId.toString())

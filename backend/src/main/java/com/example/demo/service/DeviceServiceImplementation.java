@@ -18,12 +18,8 @@ public class DeviceServiceImplementation implements DeviceService {
   private static final Logger logger = LoggerFactory.getLogger(DeviceServiceImplementation.class);
 
   // Neo4j driver instance for interacting with the Neo4j database
-  private final Driver driver;
-
   @Autowired
-  public DeviceServiceImplementation(Driver driver) {
-    this.driver = driver;
-  }
+  private Driver driver;
 
   @Override
   public Map<String, Object> saveDevice(Device device) {

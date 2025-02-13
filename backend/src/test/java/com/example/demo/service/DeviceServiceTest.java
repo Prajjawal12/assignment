@@ -4,25 +4,20 @@ import com.example.demo.entity.Device;
 import com.example.demo.customExceptions.DeviceNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.neo4j.driver.Driver;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import static org.junit.jupiter.api.Assertions.*;
-// The driver is injected and used internally by the DeviceServiceImplementation, so it's not directly used in the test methods.
+
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 
-@ExtendWith(SpringExtension.class)
 @SpringBootTest
 class DeviceServiceImplementationTest {
 
   @Autowired
   private DeviceServiceImplementation deviceService;
-
-  @Autowired
-  private Driver driver;
 
   private Device testDevice;
 
@@ -43,7 +38,7 @@ class DeviceServiceImplementationTest {
       }
     } catch (DeviceNotFoundException e) {
       // Ignore if the device doesn't exist (already deleted)
-
+      System.out.println("Test");
     }
   }
 
