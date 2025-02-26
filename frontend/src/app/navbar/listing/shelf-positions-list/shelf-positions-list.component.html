@@ -1,1 +1,22 @@
-<p>shelf-positions-list works!</p>
+<table *ngIf="shelfPositions && shelfPositions.length > 0">
+    <thead>
+        <tr>
+            <th *ngFor="let column of columns">{{column}}</th>
+        </tr>
+
+    </thead>
+
+
+    <tbody>
+        <tr *ngFor="let shelfPosition of shelfPositions">
+            <td>{{shelfPosition.id}}</td>
+            <td>{{shelfPosition.name}}</td>
+            <td>{{shelfPosition.deviceId}}</td>
+        </tr>
+    </tbody>
+</table>
+
+
+<div *ngIf="shelfPositions.length === 0 || !shelfPositions">
+    <p>No Shelf Nodes present in database!</p>
+</div>

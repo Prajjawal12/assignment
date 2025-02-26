@@ -34,16 +34,9 @@ public class InventoryServiceImplementation implements InventoryService {
         var record = tx.run(query, Values.parameters("shelfId", shelf.getId(), "shelfName", shelf.getName(),
             "shelfType", shelf.getShelfType()));
 
-        if (!record.hasNext()) {
-          throw new RecordNotFoundException("Failed to save Shelf with ID: " + shelf.getId());
-        }
-
         logger.info("Shelf with ID {} saved successfully", shelf.getId());
         return record.single().get("savedShelf").asNode().asMap();
       });
-    } catch (RecordNotFoundException e) {
-      logger.warn(e.getMessage());
-      throw e;
     } catch (Exception e) {
       logger.error("Unexpected error while saving shelf with ID {}: {}", shelf.getId(), e.getMessage());
       throw e;

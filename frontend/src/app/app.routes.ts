@@ -7,6 +7,7 @@ import { DeviceListComponent } from './navbar/listing/device-list/device-list.co
 import { ShelfPositionsListComponent } from './navbar/listing/shelf-positions-list/shelf-positions-list.component';
 import { ShelfListComponent } from './navbar/listing/shelf-list/shelf-list.component';
 export const routes: Routes = [
+  { path: '', component: HomeComponent },
   { path: 'home', component: HomeComponent },
   { path: 'device', component: DeviceComponent },
   { path: 'inventory', component: InventoryComponent },

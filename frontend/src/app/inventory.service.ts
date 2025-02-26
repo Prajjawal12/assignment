@@ -47,5 +47,13 @@ export class InventoryService {
       })
     )
   }
+  getAllShelfNodes(): Observable<ShelfV0[]> {
+    return this.http.get<ShelfV0[]>(`${this.apiUrl}/shelf/list`)
+  }
+
+  getAllShelfPositionNodes(): Observable<ShelfPositionV0[]> {
+    return this.http.get<ShelfPositionV0[]>(`${this.apiUrl}/shelf-position/list`)
+  }
+
 
 }
