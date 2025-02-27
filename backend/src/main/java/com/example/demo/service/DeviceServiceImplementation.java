@@ -5,12 +5,16 @@ import java.util.List;
 import java.util.Map;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Record;
+import org.neo4j.driver.Result;
+import org.neo4j.driver.Session;
 import org.neo4j.driver.Values;
+import org.neo4j.driver.exceptions.NoSuchRecordException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.example.demo.customExceptions.DeviceAlreadyPresentException;
 import com.example.demo.customExceptions.DeviceNotFoundException;
 import com.example.demo.entity.Device;
 
@@ -26,27 +30,58 @@ public class DeviceServiceImplementation implements DeviceService {
 
   @Override
   public Map<String, Object> saveDevice(Device device) {
-    logger.info("Saving device with ID: {}", device.getId());
-    try (var session = driver.session()) {
-      // Perform write transaction to save the device
-      var res = session.executeWrite(tx -> {
+
+    try (Session session = driver.session()) {
+      String res = session.executeRead(tx -> {
         String query = """
-            MERGE (d:Device {id:$deviceId})
-            SET d.name = $deviceName, d.deviceType = $deviceType
-            RETURN d AS savedDevice
-               """;
+            OPTIONAL MATCH (d:Device {id:$deviceId})
+            RETURN
+            CASE
+            WHEN d.status = 'active' THEN 'active'
+            WHEN d.status = 'inactive' THEN 'inactive'
+            WHEN d.status = 'deleted' THEN 'deleted'
+            ELSE NULL
+            END AS result
+            """;
 
-        // Execute the query and capture the result
-        var record = tx.run(query, Values.parameters("deviceId", device.getId(),
-            "deviceName", device.getName(), "deviceType", device.getDeviceType())).single();
+        Result result = tx.run(query, Values.parameters("deviceId", device.getId()));
+        try {
+          return result.single().get("result").asString();
+        } catch (NoSuchRecordException e) {
+          return "notPresent";
+        }
 
-        logger.info("Device with ID {} saved successfully", device.getId());
-        return record.get("savedDevice").asNode().asMap();
       });
-      return res;
-    } catch (Exception e) {
-      logger.error("Error while saving device: {}", e.getMessage(), e);
-      throw e;
+      // reference :- https://stackoverflow.com/a/27538809
+      System.out.println(res); // working until here
+      if (res.equals("active") || res.equals("inactive")) {
+        throw new DeviceAlreadyPresentException("Device with id " + device.getId()
+            + " is already present in the database in either active or inactive state hence the id cannot be resued.");
+      }
+
+      // working until here
+      Map<String, Object> createdDevice = session.executeWrite(
+          tx -> {
+            String query = """
+                CREATE (d: Device { id: $deviceId })
+                SET d.name = $deviceName , d.deviceType = $deviceType , d.status = $deviceStatus
+                RETURN d AS savedDevice;
+                """;
+
+            Result resQuery = tx.run(query, Values.parameters("deviceId", device.getId(), "deviceName",
+                device.getName(), "deviceType", device.getDeviceType(), "deviceStatus",
+                device.getDeviceStatus().ACTIVE.toString().toLowerCase()));
+            // System.out.println(resQuery.single().get("savedDevice").asNode().asMap()); //
+            // Above statement ends up consuming the result
+            // Note to self, never use sout again for testing results coming from DB as it
+            // could end up consuming it
+            // it is working fine as I can
+            // see the map so created
+            return resQuery.single().get("savedDevice").asNode().asMap();
+
+          });
+      System.out.println("I have created this device" + createdDevice);
+      return createdDevice;
     }
   }
 
