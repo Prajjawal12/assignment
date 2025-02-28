@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.demo.entity.Device;
 import com.example.demo.service.DeviceServiceImplementation;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @RestController
 @RequestMapping("/api/device")
@@ -29,7 +31,7 @@ public class DeviceController {
   private DeviceServiceImplementation deviceServiceImplementation;
 
   // Deletes a device by its ID
-  @DeleteMapping("/{deviceId}")
+  @DeleteMapping("delete/{deviceId}")
   public ResponseEntity<Long> deleteDevice(@PathVariable long deviceId) {
     logger.info("Attempting to delete device with id: {}", deviceId);
     Long deletedDeviceId = deviceServiceImplementation.deleteDevice(deviceId);
@@ -48,9 +50,9 @@ public class DeviceController {
 
   // Retrieves a device by its ID
   @GetMapping("/{deviceId}")
-  public ResponseEntity<Map<String, Object>> getDevice(@PathVariable long deviceId) throws Exception {
+  public ResponseEntity<Map<String, Object>> getDeviceById(@PathVariable long deviceId) throws Exception {
     logger.info("Attempting to retrieve device with id: {}", deviceId);
-    Map<String, Object> getDeviceFromDB = deviceServiceImplementation.getDevice(deviceId);
+    Map<String, Object> getDeviceFromDB = deviceServiceImplementation.getDeviceById(deviceId);
     logger.info("Device with id: {} retrieved successfully.", deviceId);
     return ResponseEntity.ok(getDeviceFromDB);
 
@@ -72,4 +74,11 @@ public class DeviceController {
     return ResponseEntity.ok(deviceMap);
 
   }
+
+  @PutMapping("/switch-status/{deviceId}")
+  public ResponseEntity<String> switchDeviceStatus(@PathVariable Long deviceId) {
+    deviceServiceImplementation.switchStatus(deviceId);
+    return ResponseEntity.ok("Device Status Switched Succesfully for device with id " + deviceId);
+  }
+
 }

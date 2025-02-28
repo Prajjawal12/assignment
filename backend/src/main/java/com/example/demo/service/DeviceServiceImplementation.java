@@ -1,5 +1,6 @@
 package com.example.demo.service;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -8,12 +9,13 @@ import org.neo4j.driver.Record;
 import org.neo4j.driver.Result;
 import org.neo4j.driver.Session;
 import org.neo4j.driver.Values;
-import org.neo4j.driver.exceptions.NoSuchRecordException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.example.demo.customExceptions.DeletedDeviceCannotSwitchStatus;
+import com.example.demo.customExceptions.DeletedDeviceCantBeDeletedException;
 import com.example.demo.customExceptions.DeviceAlreadyPresentException;
 import com.example.demo.customExceptions.DeviceNotFoundException;
 import com.example.demo.entity.Device;
@@ -28,38 +30,49 @@ public class DeviceServiceImplementation implements DeviceService {
   @Autowired
   private Driver driver;
 
+  /*
+   * Initial query
+   * 
+   * OPTIONAL MATCH (d:Device {id:$deviceId})
+   * RETURN
+   * CASE
+   * WHEN d.status = 'active' THEN 'active'
+   * WHEN d.status = 'inactive' THEN 'inactive'
+   * WHEN d.status = 'deleted' THEN 'deleted'
+   * ELSE NULL
+   * END AS result
+   * """;
+   */
   @Override
   public Map<String, Object> saveDevice(Device device) {
-
     try (Session session = driver.session()) {
-      String res = session.executeRead(tx -> {
+      session.executeRead(tx -> {
         String query = """
             OPTIONAL MATCH (d:Device {id:$deviceId})
-            RETURN
-            CASE
-            WHEN d.status = 'active' THEN 'active'
-            WHEN d.status = 'inactive' THEN 'inactive'
-            WHEN d.status = 'deleted' THEN 'deleted'
-            ELSE NULL
-            END AS result
+            RETURN COALESCE(d.status, 'notPresent') AS result
             """;
 
         Result result = tx.run(query, Values.parameters("deviceId", device.getId()));
-        try {
-          return result.single().get("result").asString();
-        } catch (NoSuchRecordException e) {
-          return "notPresent";
+        boolean activeOrInactiveState = false;
+        while (result.hasNext()) {
+          Record record = result.next();
+          String status = record.get("result").asString();
+
+          if (status.equals("active") || status.equals("inactive")) {
+            activeOrInactiveState = true;
+            break;
+          }
+
         }
+        if (activeOrInactiveState) {
+          throw new DeviceAlreadyPresentException("The device with the id " + device.getId()
+              + " is already present in the database in either active or inactive state");
+        }
+
+        return null;
 
       });
       // reference :- https://stackoverflow.com/a/27538809
-      System.out.println(res); // working until here
-      if (res.equals("active") || res.equals("inactive")) {
-        throw new DeviceAlreadyPresentException("Device with id " + device.getId()
-            + " is already present in the database in either active or inactive state hence the id cannot be resued.");
-      }
-
-      // working until here
       Map<String, Object> createdDevice = session.executeWrite(
           tx -> {
             String query = """
@@ -83,10 +96,11 @@ public class DeviceServiceImplementation implements DeviceService {
       System.out.println("I have created this device" + createdDevice);
       return createdDevice;
     }
+
   }
 
   @Override
-  public Map<String, Object> getDevice(long deviceId) {
+  public Map<String, Object> getDeviceById(long deviceId) {
     logger.info("Fetching device with ID: {}", deviceId);
     try (var session = driver.session()) {
       var res = session.executeRead(tx -> {
@@ -142,35 +156,63 @@ public class DeviceServiceImplementation implements DeviceService {
   }
 
   @Override
-  public long deleteDevice(long deviceId) {
-    logger.info("Deleting device with ID: {}", deviceId);
-    try (var session = driver.session()) {
-      // Perform write transaction to delete the device by its ID
-      var res = session.executeWrite(tx -> {
+  public Long deleteDevice(long deviceId) {
+
+    try (Session session = driver.session()) {
+      Map<String, Object> statusCheckForPresentDevices = session.executeRead(tx -> {
         String query = """
             MATCH (d:Device {id:$deviceId})
-            WITH d, d.id AS deviceIdDeleted
-            DETACH DELETE d
-            RETURN deviceIdDeleted;
-                """;
+            RETURN d.status AS status
+            """;
 
-        var record = tx.run(query, Values.parameters("deviceId", deviceId));
+        Result result = tx.run(query, Values.parameters("deviceId", deviceId));
+        boolean activeOrInactiveDevicePresenceCheck = false;
+        int deletedDevicesCount = 0;
 
-        if (!record.hasNext()) {
-          logger.warn("Device with ID {} not found for deletion", deviceId);
-          throw new DeviceNotFoundException("Device with ID " + deviceId + " not found.");
+        while (result.hasNext()) {
+          Record record = result.next();
+          String status = record.get("status").asString();
+
+          if (status.equals("active") || status.equals("inactive")) {
+            activeOrInactiveDevicePresenceCheck = true;
+          } else if (status.equals("deleted")) {
+            deletedDevicesCount++;
+          }
+
         }
+        return Map.of("activeOrInactiveFound", activeOrInactiveDevicePresenceCheck, "deletedDevicesCount",
+            deletedDevicesCount);
 
-        logger.info("Device with ID {} deleted successfully", deviceId);
-        return record.single().get("deviceIdDeleted").asLong();
       });
-      return res;
-    } catch (
 
-    Exception e) {
-      logger.error("Error while deleting device: {}", e.getMessage(), e);
-      throw e;
+      boolean activeOrInactiveDevicePresenceCheck = (boolean) statusCheckForPresentDevices.get("activeOrInactiveFound");
+      int deletedDevicesCount = (int) statusCheckForPresentDevices.get("deletedDevicesCount");
+
+      if (deletedDevicesCount == 0 && !activeOrInactiveDevicePresenceCheck) {
+        throw new DeviceNotFoundException("The device with ID " + deviceId + " is not present in the database");
+      }
+
+      if (deletedDevicesCount > 0 && !activeOrInactiveDevicePresenceCheck) {
+        throw new DeletedDeviceCantBeDeletedException("The device with id " + deviceId
+            + " cannot be deleted as there are no active or inactive devices with the ID " + deviceId);
+      }
+
+      Long deletedDeviceId = session.executeWrite(tx -> {
+        String query = """
+            MATCH (d:Device {id:$deviceId})
+            WHERE d.status IN ['active' , 'inactive']
+            SET d.status = 'deleted' , d.deletedAt = $deletedAt
+            RETURN d.id AS deletedDeviceId;
+            """;
+
+        Result result = tx.run(query,
+            Values.parameters("deviceId", deviceId, "deletedAt", LocalDateTime.now().toString()));
+
+        return result.single().get("deletedDeviceId").asLong();
+      });
+      return deletedDeviceId;
     }
+
   }
 
   @Override
@@ -192,6 +234,65 @@ public class DeviceServiceImplementation implements DeviceService {
         return deviceList;
       });
       return res;
+    }
+  }
+
+  @Override
+  public void switchStatus(Long deviceId) {
+    try (Session session = driver.session()) {
+      Map<String, Object> statusCheck = session.executeRead(tx -> {
+        String query = """
+            OPTIONAL MATCH (d:Device {id:$deviceId})
+             RETURN COALESCE(d.status,'notPresent') AS deviceStatus;
+             """;
+        boolean isActiveOrInactiveDevicePresent = false;
+        boolean isDeviceWithGivenIdPresent = true;
+        int deletedDevicesCount = 0;
+        Result result = tx.run(query, Values.parameters("deviceId", deviceId));
+        while (result.hasNext()) {
+          Record record = result.next();
+          String status = record.get("deviceStatus").asString();
+          if (status.equals("active") || status.equals("inactive")) {
+            isActiveOrInactiveDevicePresent = true;
+          } else if (status.equals("deleted")) {
+            deletedDevicesCount++;
+          } else if (status.equals("notPresent")) {
+            isDeviceWithGivenIdPresent = false;
+          }
+        }
+        return Map.of("isActiveOrInactiveDevicePresent", isActiveOrInactiveDevicePresent, "isDeviceWithGivenIdPresent",
+            isDeviceWithGivenIdPresent, "deletedDevicesCount", deletedDevicesCount);
+      });
+
+      boolean isActiveOrInactiveDevicePresent = (boolean) statusCheck.get("isActiveOrInactiveDevicePresent");
+      int deletedDevicesCount = (int) statusCheck.get("deletedDevicesCount");
+      boolean isDeviceWithGivenIdPresent = (boolean) statusCheck.get("isDeviceWithGivenIdPresent");
+
+      if (isDeviceWithGivenIdPresent) {
+        throw new DeviceNotFoundException("Device with ID " + deviceId + " is not present in the database");
+      }
+
+      if (!isActiveOrInactiveDevicePresent && deletedDevicesCount > 0) {
+        throw new DeletedDeviceCannotSwitchStatus("There is no device with ID " + deviceId
+            + " which is in active or inactive state to switch it's state.They are present in deleted state.");
+      }
+
+      session.executeWriteWithoutResult(tx -> {
+        String query = """
+            MATCH (d:Device {id:$deviceId})
+            WHERE d.status <> 'deleted'
+            SET d.modifiedAt = datetime(),
+            d.status =
+            CASE
+            WHEN d.status = 'active' THEN 'inactive'
+            WHEN d.status = 'inactive' THEN 'active'
+            END
+            RETURN d  AS updatedDevice
+            """;
+
+        tx.run(query, Values.parameters("deviceId", deviceId));
+
+      });
     }
   }
 }
