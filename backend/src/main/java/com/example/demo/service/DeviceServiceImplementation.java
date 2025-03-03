@@ -13,14 +13,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.example.demo.customExceptions.DeletedDeviceCannotSwitchStatus;
 import com.example.demo.customExceptions.DeletedDeviceCantBeDeletedException;
+import com.example.demo.customExceptions.DeletedDevicesCannotBeModified;
 import com.example.demo.customExceptions.DeviceAlreadyPresentException;
 import com.example.demo.customExceptions.DeviceNotFoundException;
+import com.example.demo.customExceptions.InactiveDeviceCannotBeModified;
 import com.example.demo.entity.Device;
 
 @Service
+@Transactional
 public class DeviceServiceImplementation implements DeviceService {
 
   // Logger for logging relevant information
@@ -44,12 +49,14 @@ public class DeviceServiceImplementation implements DeviceService {
    * """;
    */
   @Override
+  @Transactional(propagation = Propagation.REQUIRED)
+
   public Map<String, Object> saveDevice(Device device) {
     try (Session session = driver.session()) {
       session.executeRead(tx -> {
         String query = """
             OPTIONAL MATCH (d:Device {id:$deviceId})
-            RETURN COALESCE(d.status, 'notPresent') AS result
+            RETURN COALESCE(d.status, 'notPresent') AS result;
             """;
 
         Result result = tx.run(query, Values.parameters("deviceId", device.getId()));
@@ -88,75 +95,118 @@ public class DeviceServiceImplementation implements DeviceService {
             // Above statement ends up consuming the result
             // Note to self, never use sout again for testing results coming from DB as it
             // could end up consuming it
-            // it is working fine as I can
-            // see the map so created
+
             return resQuery.single().get("savedDevice").asNode().asMap();
 
           });
-      System.out.println("I have created this device" + createdDevice);
       return createdDevice;
     }
 
   }
 
   @Override
-  public Map<String, Object> getDeviceById(long deviceId) {
-    logger.info("Fetching device with ID: {}", deviceId);
-    try (var session = driver.session()) {
-      var res = session.executeRead(tx -> {
+  @Transactional(propagation = Propagation.SUPPORTS)
+
+  public List<Map<String, Object>> getDeviceById(Long deviceId) {
+    try (Session session = driver.session()) {
+      List<Map<String, Object>> deviceListById = session.executeRead(tx -> {
         String query = """
             MATCH (d:Device {id:$deviceId})
-            RETURN d AS deviceFound
-              """;
-        // Perform read transaction to fetch the device by ID
+            RETURN d AS devicesFound;
+            """;
 
-        var record = tx.run(query, Values.parameters("deviceId", deviceId));
-        System.out.println(record.peek());
-        if (!record.hasNext()) {
-          logger.warn("Device with ID {} not found", deviceId);
-          throw new DeviceNotFoundException("Device with ID " + deviceId + " not found.");
+        Result result = tx.run(query, Values.parameters("deviceId", deviceId));
+        List<Map<String, Object>> deviceList = new ArrayList<>();
+        while (result.hasNext()) {
+          Record record = result.next();
+          Map<String, Object> deviceFound = record.get("devicesFound").asNode().asMap();
+          deviceList.add(deviceFound);
         }
 
-        logger.info("Device with ID {} fetched successfully", deviceId);
-        return record.single().get("deviceFound").asNode().asMap();
+        return deviceList;
       });
-      return res;
-    } catch (DeviceNotFoundException e) {
-      logger.error("Device not found with ID {}: {}", deviceId, e.getMessage());
-      throw e;
-    } catch (Exception e) {
-      logger.error("Error while fetching device: {}", e.getMessage(), e);
-      throw e;
+      return deviceListById;
     }
+
   }
 
   @Override
+  @Transactional(propagation = Propagation.REQUIRED)
+
   public Map<String, Object> modifyDevice(Long id, Device device) {
-    logger.info("Modifying device with ID: {}", id);
-    try (var session = driver.session()) {
-      // Perform write transaction to modify the device by its ID
-      var res = session.executeWrite(tx -> {
+    try (Session session = driver.session()) {
+      Map<String, Object> statusCheckMapForModification = session.executeRead(tx -> {
         String query = """
-            MATCH (d:Device {id: $deviceId})
-            SET d.name = $deviceName, d.deviceType = $deviceType
-            RETURN d AS modifiedDevice
-                """;
+                OPTIONAL MATCH (d:Device {id:$deviceId})
+                RETURN COALESCE(d.status, 'notPresent') AS status;
+            """;
 
-        var record = tx.run(query, Values.parameters("deviceId", id,
-            "deviceName", device.getName(), "deviceType", device.getDeviceType())).single();
+        Result result = tx.run(query, Values.parameters("deviceId", id));
 
-        logger.info("Device with ID {} modified successfully", id);
-        return record.get("modifiedDevice").asNode().asMap();
+        boolean isActiveDevicePresent = false;
+        boolean isInactiveDevicePresent = false;
+        int deletedDevicesCount = 0;
+
+        while (result.hasNext()) {
+          Record record = result.next();
+          String status = record.get("status").asString();
+
+          if (status.equals("inactive")) {
+            isInactiveDevicePresent = true;
+          } else if (status.equals("active")) {
+            isActiveDevicePresent = true;
+          } else if (status.equals("deleted")) {
+            deletedDevicesCount++;
+          }
+        }
+
+        return Map.of(
+            "isActiveDevicePresent", isActiveDevicePresent,
+            "isInactiveDevicePresent", isInactiveDevicePresent,
+            "deletedDevicesCount", deletedDevicesCount);
       });
-      return res;
-    } catch (Exception e) {
-      logger.error("Error while modifying device: {}", e.getMessage(), e);
-      throw e;
+
+      boolean isActiveDevicePresent = (boolean) statusCheckMapForModification.get("isActiveDevicePresent");
+      boolean isInactiveDevicePresent = (boolean) statusCheckMapForModification.get("isInactiveDevicePresent");
+      int deletedDevicesCount = (int) statusCheckMapForModification.get("deletedDevicesCount");
+
+      if (!isActiveDevicePresent && deletedDevicesCount > 0) {
+        throw new DeletedDevicesCannotBeModified(
+            "The device with Id " + id + " cannot be modified as it is in deleted state.");
+      }
+      if (!isActiveDevicePresent && deletedDevicesCount == 0 && isInactiveDevicePresent) {
+        throw new InactiveDeviceCannotBeModified(
+            "The device with Id " + id + " cannot be modified as it is in inactive state.");
+      }
+      if (!isActiveDevicePresent && deletedDevicesCount == 0 && !isInactiveDevicePresent) {
+        throw new DeviceNotFoundException(
+            "The device with Id " + id + " cannot be modified as it is not present in our database.");
+      }
+
+      Map<String, Object> modifiedDevice = session.executeWrite(tx -> {
+        String query = """
+                MATCH (d: Device {id:$deviceId})
+                WHERE d.status = 'active'
+                SET d.name = $modifiedDeviceName,
+                    d.deviceType = $modifiedDeviceType,
+                    d.modifiedCredentialsAt = datetime()
+                RETURN d AS modifiedDevice;
+            """;
+
+        Result result = tx.run(query, Values.parameters("deviceId", id, "modifiedDeviceName", device.getName(),
+            "modifiedDeviceType", device.getDeviceType()));
+
+        return result.single().get("modifiedDevice").asNode().asMap();
+      });
+
+      return modifiedDevice;
     }
   }
 
   @Override
-  public Long deleteDevice(long deviceId) {
+  @Transactional(propagation = Propagation.REQUIRED)
+
+  public Long deleteDevice(Long deviceId) {
 
     try (Session session = driver.session()) {
       Map<String, Object> statusCheckForPresentDevices = session.executeRead(tx -> {
@@ -216,14 +266,15 @@ public class DeviceServiceImplementation implements DeviceService {
   }
 
   @Override
+  @Transactional(propagation = Propagation.SUPPORTS)
   public List<Map<String, Object>> listAllDevices() {
-    try (var session = driver.session()) {
-      var res = session.executeRead(tx -> {
+    try (Session session = driver.session()) {
+      List<Map<String, Object>> res = session.executeRead(tx -> {
         String query = """
             MATCH (d: Device)
             RETURN d
             """;
-        var result = tx.run(query);
+        Result result = tx.run(query);
         List<Map<String, Object>> deviceList = new ArrayList<>();
         while (result.hasNext()) {
           Record record = result.next();
@@ -238,6 +289,83 @@ public class DeviceServiceImplementation implements DeviceService {
   }
 
   @Override
+  @Transactional(propagation = Propagation.SUPPORTS)
+
+  public List<Map<String, Object>> listAllActiveDevices() {
+    try (Session session = driver.session()) {
+      List<Map<String, Object>> res = session.executeRead(tx -> {
+        String query = """
+            MATCH (d: Device)
+            WHERE d.status = 'active'
+            RETURN d
+            """;
+        Result result = tx.run(query);
+        List<Map<String, Object>> deviceList = new ArrayList<>();
+        while (result.hasNext()) {
+          Record record = result.next();
+          Map<String, Object> deviceMap = record.get("d").asNode().asMap();
+          deviceList.add(deviceMap);
+
+        }
+        return deviceList;
+      });
+      return res;
+    }
+  }
+
+  @Override
+  @Transactional(propagation = Propagation.SUPPORTS)
+
+  public List<Map<String, Object>> listAllInActiveDevices() {
+    try (Session session = driver.session()) {
+      List<Map<String, Object>> res = session.executeRead(tx -> {
+        String query = """
+            MATCH (d: Device)
+            WHERE d.status = 'inactive'
+            RETURN d
+            """;
+        Result result = tx.run(query);
+        List<Map<String, Object>> deviceList = new ArrayList<>();
+        while (result.hasNext()) {
+          Record record = result.next();
+          Map<String, Object> deviceMap = record.get("d").asNode().asMap();
+          deviceList.add(deviceMap);
+
+        }
+        return deviceList;
+      });
+      return res;
+    }
+  }
+
+  @Override
+  @Transactional(propagation = Propagation.SUPPORTS)
+
+  public List<Map<String, Object>> listAllDeletedDevices() {
+    try (Session session = driver.session()) {
+      List<Map<String, Object>> res = session.executeRead(tx -> {
+        String query = """
+            MATCH (d: Device)
+            WHERE d.status = 'deleted'
+            RETURN d
+            """;
+        Result result = tx.run(query);
+        List<Map<String, Object>> deviceList = new ArrayList<>();
+        while (result.hasNext()) {
+          Record record = result.next();
+          Map<String, Object> deviceMap = record.get("d").asNode().asMap();
+          deviceList.add(deviceMap);
+
+        }
+        return deviceList;
+      });
+      return res;
+    }
+  }
+
+  @Override
+  @Transactional(propagation = Propagation.REQUIRED)
+
   public void switchStatus(Long deviceId) {
     try (Session session = driver.session()) {
       Map<String, Object> statusCheck = session.executeRead(tx -> {
@@ -246,7 +374,6 @@ public class DeviceServiceImplementation implements DeviceService {
              RETURN COALESCE(d.status,'notPresent') AS deviceStatus;
              """;
         boolean isActiveOrInactiveDevicePresent = false;
-        boolean isDeviceWithGivenIdPresent = true;
         int deletedDevicesCount = 0;
         Result result = tx.run(query, Values.parameters("deviceId", deviceId));
         while (result.hasNext()) {
@@ -254,21 +381,19 @@ public class DeviceServiceImplementation implements DeviceService {
           String status = record.get("deviceStatus").asString();
           if (status.equals("active") || status.equals("inactive")) {
             isActiveOrInactiveDevicePresent = true;
+
           } else if (status.equals("deleted")) {
             deletedDevicesCount++;
-          } else if (status.equals("notPresent")) {
-            isDeviceWithGivenIdPresent = false;
           }
         }
-        return Map.of("isActiveOrInactiveDevicePresent", isActiveOrInactiveDevicePresent, "isDeviceWithGivenIdPresent",
-            isDeviceWithGivenIdPresent, "deletedDevicesCount", deletedDevicesCount);
+        return Map.of("isActiveOrInactiveDevicePresent", isActiveOrInactiveDevicePresent, "deletedDevicesCount",
+            deletedDevicesCount);
       });
 
       boolean isActiveOrInactiveDevicePresent = (boolean) statusCheck.get("isActiveOrInactiveDevicePresent");
       int deletedDevicesCount = (int) statusCheck.get("deletedDevicesCount");
-      boolean isDeviceWithGivenIdPresent = (boolean) statusCheck.get("isDeviceWithGivenIdPresent");
 
-      if (isDeviceWithGivenIdPresent) {
+      if (deletedDevicesCount == 0 && !isActiveOrInactiveDevicePresent) {
         throw new DeviceNotFoundException("Device with ID " + deviceId + " is not present in the database");
       }
 
@@ -281,7 +406,7 @@ public class DeviceServiceImplementation implements DeviceService {
         String query = """
             MATCH (d:Device {id:$deviceId})
             WHERE d.status <> 'deleted'
-            SET d.modifiedAt = datetime(),
+            SET d.statusSwitchTimeStamp = datetime(),
             d.status =
             CASE
             WHEN d.status = 'active' THEN 'inactive'

@@ -7,21 +7,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestMethod;
 
 import com.example.demo.entity.Device;
 import com.example.demo.service.DeviceServiceImplementation;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
 
-@RestController
+@Controller
 @RequestMapping("/api/device")
 public class DeviceController {
 
@@ -31,7 +26,8 @@ public class DeviceController {
   private DeviceServiceImplementation deviceServiceImplementation;
 
   // Deletes a device by its ID
-  @DeleteMapping("delete/{deviceId}")
+  // @DeleteMapping("delete/{deviceId}")
+  @RequestMapping(value = "delete/{deviceId}", method = RequestMethod.DELETE)
   public ResponseEntity<Long> deleteDevice(@PathVariable long deviceId) {
     logger.info("Attempting to delete device with id: {}", deviceId);
     Long deletedDeviceId = deviceServiceImplementation.deleteDevice(deviceId);
@@ -41,7 +37,8 @@ public class DeviceController {
   }
 
   // Saves a new device to the database
-  @PostMapping("/save")
+  // @PostMapping("/save")
+  @RequestMapping(value = "/save", method = RequestMethod.POST)
   public ResponseEntity<Map<String, Object>> saveDevice(@RequestBody Device device) throws Exception {
     Map<String, Object> savedDevice = deviceServiceImplementation.saveDevice(device);
     logger.info("Device saved successfully: {}", savedDevice);
@@ -49,17 +46,23 @@ public class DeviceController {
   }
 
   // Retrieves a device by its ID
-  @GetMapping("/{deviceId}")
-  public ResponseEntity<Map<String, Object>> getDeviceById(@PathVariable long deviceId) throws Exception {
+  // @GetMapping("fetch/{deviceId}")
+  @RequestMapping(value = "fetch/{deviceId}", method = RequestMethod.GET)
+  public ResponseEntity<List<Map<String, Object>>> getDeviceById(@PathVariable Long deviceId) throws Exception {
     logger.info("Attempting to retrieve device with id: {}", deviceId);
-    Map<String, Object> getDeviceFromDB = deviceServiceImplementation.getDeviceById(deviceId);
+    List<Map<String, Object>> getDevicesFromDB = deviceServiceImplementation.getDeviceById(deviceId);
+
+    if (getDevicesFromDB.size() == 0) {
+      throw new RuntimeException("There are no devices present with the Id " + deviceId + " in the database.");
+    }
     logger.info("Device with id: {} retrieved successfully.", deviceId);
-    return ResponseEntity.ok(getDeviceFromDB);
+    return ResponseEntity.ok(getDevicesFromDB);
 
   }
 
   // Modifies a device by its ID
-  @PutMapping("/{deviceId}")
+  // @PutMapping("modify/{deviceId}")
+  @RequestMapping(value = "modify/{deviceId}", method = RequestMethod.PUT)
   public ResponseEntity<Map<String, Object>> modifyDeviceById(@PathVariable long deviceId, @RequestBody Device device) {
     logger.info("Attempting to modify device with id: {} and details: {}", deviceId, device);
     Map<String, Object> modifiedDevice = deviceServiceImplementation.modifyDevice(deviceId, device);
@@ -68,14 +71,40 @@ public class DeviceController {
 
   }
 
-  @GetMapping("/list")
+  // @GetMapping("/list")
+  @RequestMapping(value = "/list", method = RequestMethod.GET)
   public ResponseEntity<List<Map<String, Object>>> getAllDevices() {
     List<Map<String, Object>> deviceMap = deviceServiceImplementation.listAllDevices();
     return ResponseEntity.ok(deviceMap);
 
   }
 
-  @PutMapping("/switch-status/{deviceId}")
+  // @GetMapping("/list/active")
+  @RequestMapping(value = "/list/active", method = RequestMethod.GET)
+  public ResponseEntity<List<Map<String, Object>>> getAllActiveDevices() {
+    List<Map<String, Object>> deviceMap = deviceServiceImplementation.listAllActiveDevices();
+    return ResponseEntity.ok(deviceMap);
+
+  }
+
+  // @GetMapping("/list/inactive")
+  @RequestMapping(value = "/list/inactive", method = RequestMethod.GET)
+  public ResponseEntity<List<Map<String, Object>>> getAllInactiveDevices() {
+    List<Map<String, Object>> deviceMap = deviceServiceImplementation.listAllInActiveDevices();
+    return ResponseEntity.ok(deviceMap);
+
+  }
+
+  // @GetMapping("/list/deleted")
+  @RequestMapping(value = "/list/deleted", method = RequestMethod.GET)
+  public ResponseEntity<List<Map<String, Object>>> getAllDeletedDevices() {
+    List<Map<String, Object>> deviceMap = deviceServiceImplementation.listAllDeletedDevices();
+    return ResponseEntity.ok(deviceMap);
+
+  }
+
+  // @PutMapping("/switch-status/{deviceId}")
+  @RequestMapping(value = "/switch-status/{deviceId}", method = RequestMethod.PUT)
   public ResponseEntity<String> switchDeviceStatus(@PathVariable Long deviceId) {
     deviceServiceImplementation.switchStatus(deviceId);
     return ResponseEntity.ok("Device Status Switched Succesfully for device with id " + deviceId);

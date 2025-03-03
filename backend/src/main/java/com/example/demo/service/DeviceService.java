@@ -12,16 +12,26 @@ public interface DeviceService {
   public Map<String, Object> saveDevice(Device device);
 
   // Method to retrieve a device by its ID
-  public Map<String, Object> getDeviceById(long deviceId);
+  public List<Map<String, Object>> getDeviceById(Long deviceId);
 
   // Method to modify a device by its ID
   public Map<String, Object> modifyDevice(Long id, Device device);
 
   // Method to delete a device by its ID
-  public Long deleteDevice(long deviceId);
+  public Long deleteDevice(Long deviceId);
 
   // Method to list all devices present in the database
   public List<Map<String, Object>> listAllDevices();
+
+  // Method to list all Active devices present in the database
+
+  public List<Map<String, Object>> listAllActiveDevices();
+  // Method to list all Inactive devices present in the database
+
+  public List<Map<String, Object>> listAllInActiveDevices();
+  // Method to list all Deleted devices present in the database
+
+  public List<Map<String, Object>> listAllDeletedDevices();
 
   // Method to switch the status of the device
   public void switchStatus(Long deviceId);
