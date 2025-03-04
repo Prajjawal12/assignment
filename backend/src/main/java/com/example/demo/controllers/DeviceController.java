@@ -39,8 +39,8 @@ public class DeviceController {
   // Saves a new device to the database
   // @PostMapping("/save")
   @RequestMapping(value = "/save", method = RequestMethod.POST)
-  public ResponseEntity<Map<String, Object>> saveDevice(@RequestBody Device device) throws Exception {
-    Map<String, Object> savedDevice = deviceServiceImplementation.saveDevice(device);
+  public ResponseEntity<Map<String, Map<String, Object>>> saveDevice(@RequestBody Device device) throws Exception {
+    Map<String, Map<String, Object>> savedDevice = deviceServiceImplementation.saveDevice(device);
     logger.info("Device saved successfully: {}", savedDevice);
     return ResponseEntity.ok(savedDevice);
   }
@@ -48,9 +48,9 @@ public class DeviceController {
   // Retrieves a device by its ID
   // @GetMapping("fetch/{deviceId}")
   @RequestMapping(value = "fetch/{deviceId}", method = RequestMethod.GET)
-  public ResponseEntity<List<Map<String, Object>>> getDeviceById(@PathVariable Long deviceId) throws Exception {
+  public ResponseEntity<Map<String, Object>> getDeviceById(@PathVariable Long deviceId) throws Exception {
     logger.info("Attempting to retrieve device with id: {}", deviceId);
-    List<Map<String, Object>> getDevicesFromDB = deviceServiceImplementation.getDeviceById(deviceId);
+    Map<String, Object> getDevicesFromDB = deviceServiceImplementation.getDeviceById(deviceId);
 
     if (getDevicesFromDB.size() == 0) {
       throw new RuntimeException("There are no devices present with the Id " + deviceId + " in the database.");
@@ -62,14 +62,17 @@ public class DeviceController {
 
   // Modifies a device by its ID
   // @PutMapping("modify/{deviceId}")
-  @RequestMapping(value = "modify/{deviceId}", method = RequestMethod.PUT)
-  public ResponseEntity<Map<String, Object>> modifyDeviceById(@PathVariable long deviceId, @RequestBody Device device) {
-    logger.info("Attempting to modify device with id: {} and details: {}", deviceId, device);
-    Map<String, Object> modifiedDevice = deviceServiceImplementation.modifyDevice(deviceId, device);
-    logger.info("Device with id: {} modified successfully.", deviceId);
-    return ResponseEntity.ok(modifiedDevice);
+  // @RequestMapping(value = "modify/{deviceId}", method = RequestMethod.PUT)
+  // public ResponseEntity<Map<String, Object>> modifyDeviceById(@PathVariable
+  // long deviceId, @RequestBody Device device) {
+  // logger.info("Attempting to modify device with id: {} and details: {}",
+  // deviceId, device);
+  // Map<String, Object> modifiedDevice =
+  // deviceServiceImplementation.modifyDevice(deviceId, device);
+  // logger.info("Device with id: {} modified successfully.", deviceId);
+  // return ResponseEntity.ok(modifiedDevice);
 
-  }
+  // }
 
   // @GetMapping("/list")
   @RequestMapping(value = "/list", method = RequestMethod.GET)
@@ -80,34 +83,40 @@ public class DeviceController {
   }
 
   // @GetMapping("/list/active")
-  @RequestMapping(value = "/list/active", method = RequestMethod.GET)
-  public ResponseEntity<List<Map<String, Object>>> getAllActiveDevices() {
-    List<Map<String, Object>> deviceMap = deviceServiceImplementation.listAllActiveDevices();
-    return ResponseEntity.ok(deviceMap);
+  // @RequestMapping(value = "/list/active", method = RequestMethod.GET)
+  // public ResponseEntity<List<Map<String, Object>>> getAllActiveDevices() {
+  // List<Map<String, Object>> deviceMap =
+  // deviceServiceImplementation.listAllActiveDevices();
+  // return ResponseEntity.ok(deviceMap);
 
-  }
+  // }
 
-  // @GetMapping("/list/inactive")
-  @RequestMapping(value = "/list/inactive", method = RequestMethod.GET)
-  public ResponseEntity<List<Map<String, Object>>> getAllInactiveDevices() {
-    List<Map<String, Object>> deviceMap = deviceServiceImplementation.listAllInActiveDevices();
-    return ResponseEntity.ok(deviceMap);
+  // // @GetMapping("/list/inactive")
+  // @RequestMapping(value = "/list/inactive", method = RequestMethod.GET)
+  // public ResponseEntity<List<Map<String, Object>>> getAllInactiveDevices() {
+  // List<Map<String, Object>> deviceMap =
+  // deviceServiceImplementation.listAllInActiveDevices();
+  // return ResponseEntity.ok(deviceMap);
 
-  }
+  // }
 
-  // @GetMapping("/list/deleted")
-  @RequestMapping(value = "/list/deleted", method = RequestMethod.GET)
-  public ResponseEntity<List<Map<String, Object>>> getAllDeletedDevices() {
-    List<Map<String, Object>> deviceMap = deviceServiceImplementation.listAllDeletedDevices();
-    return ResponseEntity.ok(deviceMap);
+  // // @GetMapping("/list/deleted")
+  // @RequestMapping(value = "/list/deleted", method = RequestMethod.GET)
+  // public ResponseEntity<List<Map<String, Object>>> getAllDeletedDevices() {
+  // List<Map<String, Object>> deviceMap =
+  // deviceServiceImplementation.listAllDeletedDevices();
+  // return ResponseEntity.ok(deviceMap);
 
-  }
+  // }
 
-  // @PutMapping("/switch-status/{deviceId}")
-  @RequestMapping(value = "/switch-status/{deviceId}", method = RequestMethod.PUT)
-  public ResponseEntity<String> switchDeviceStatus(@PathVariable Long deviceId) {
-    deviceServiceImplementation.switchStatus(deviceId);
-    return ResponseEntity.ok("Device Status Switched Succesfully for device with id " + deviceId);
-  }
+  // // @PutMapping("/switch-status/{deviceId}")
+  // @RequestMapping(value = "/switch-status/{deviceId}", method =
+  // RequestMethod.PUT)
+  // public ResponseEntity<String> switchDeviceStatus(@PathVariable Long deviceId)
+  // {
+  // deviceServiceImplementation.switchStatus(deviceId);
+  // return ResponseEntity.ok("Device Status Switched Succesfully for device with
+  // id " + deviceId);
+  // }
 
 }
