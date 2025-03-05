@@ -18,6 +18,8 @@ public class ShelfV0 {
 
   private String shelfType;
 
+  private Long associatedShelfPositions;
+
   private long shelfPositionId;
 
 }

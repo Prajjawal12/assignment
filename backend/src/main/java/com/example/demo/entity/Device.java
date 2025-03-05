@@ -19,5 +19,4 @@ public class Device {
 
   private String deviceType;
 
-  private boolean isDeleted;
 }

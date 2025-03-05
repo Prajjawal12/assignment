@@ -1,227 +1,104 @@
 package com.example.demo.service;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 import org.neo4j.driver.Driver;
+import org.neo4j.driver.Record;
+import org.neo4j.driver.Result;
+import org.neo4j.driver.Session;
 import org.neo4j.driver.Values;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import com.example.demo.customExceptions.RecordNotFoundException;
-import com.example.demo.entity.ShelfPositionV0;
+
+import com.example.demo.customExceptions.ShelfNotFoundException;
 import com.example.demo.entity.ShelfV0;
 
 @Service
 public class InventoryServiceImplementation implements InventoryService {
-  private static final Logger logger = LoggerFactory.getLogger(InventoryServiceImplementation.class);
+
   @Autowired
   private Driver driver;
 
-  // Save a new shelf to the database
   @Override
-  public Map<String, Object> saveShelf(ShelfV0 shelf) {
-    logger.info("Saving shelf with ID: {}", shelf.getId());
-    try (var session = driver.session()) {
-      return session.executeWrite((tx) -> {
-        String query = """
-            MERGE (s:ShelfV0 {id:$shelfId})
-            SET s.name = $shelfName, s.shelfType = $shelfType
-            RETURN s AS savedShelf;
-            """;
-
-        var record = tx.run(query, Values.parameters("shelfId", shelf.getId(), "shelfName", shelf.getName(),
-            "shelfType", shelf.getShelfType()));
-
-        logger.info("Shelf with ID {} saved successfully", shelf.getId());
-        return record.single().get("savedShelf").asNode().asMap();
-      });
-    } catch (Exception e) {
-      logger.error("Unexpected error while saving shelf with ID {}: {}", shelf.getId(), e.getMessage());
-      throw e;
-    }
-  }
-
-  // Retrieve a shelf by its ID
-  @Override
-  public Map<String, Object> getShelf(Long shelfId) {
-    logger.info("Fetching shelf with ID: {}", shelfId);
-    try (var session = driver.session()) {
-      return session.executeRead(tx -> {
-        String query = """
-            MATCH (s:ShelfV0 {id:$shelfId})
-            RETURN s;
-            """;
-
-        var record = tx.run(query, Values.parameters("shelfId", shelfId));
-        if (!record.hasNext()) {
-          logger.warn("Shelf with ID {} not found", shelfId);
-          throw new RecordNotFoundException("No ShelfV0 is present with the id: " + shelfId);
-        }
-
-        logger.info("Shelf with ID {} fetched successfully", shelfId);
-        return record.single().get("s").asNode().asMap();
-      });
-    } catch (RecordNotFoundException e) {
-      logger.warn(e.getMessage());
-      throw e;
-    } catch (Exception e) {
-      logger.error("Unexpected error while fetching shelf with ID {}: {}", shelfId, e.getMessage());
-      throw e;
-    }
-  }
-
-  // Save a new shelf position to the database
-  @Override
-  public Map<String, Object> saveShelfPosition(ShelfPositionV0 shelfPosition) {
-    logger.info("Saving shelf position with ID: {}", shelfPosition.getId());
-    try (var session = driver.session()) {
+  public Map<String, Object> saveShelf(ShelfV0 shelf, boolean confirmModification) {
+    try (Session session = driver.session()) {
       return session.executeWrite(tx -> {
-        String query = """
-            MERGE (s:ShelfPositionV0 {id:$shelfPositionId})
-            SET s.name = $shelfPositionName
-            RETURN s as shelfPositionName
-               """;
-
-        var record = tx.run(query, Values.parameters(
-            "shelfPositionId", shelfPosition.getId(),
-            "shelfPositionName", shelfPosition.getName()));
-
-        if (!record.hasNext()) {
-          throw new RecordNotFoundException("Failed to save Shelf Position with ID: " + shelfPosition.getId());
+        if (confirmModification) {
+          modifyShelf(shelf.getId(), shelf);
+        } else {
+          createShelf(shelf);
         }
-
-        logger.info("Shelf position with ID {} saved successfully", shelfPosition.getId());
-        return record.single().get("shelfPositionName").asNode().asMap();
+        return getShelfById(shelf.getId());
       });
-    } catch (RecordNotFoundException e) {
-      logger.warn(e.getMessage());
-      throw e;
-    } catch (Exception e) {
-      logger.error("Unexpected error while saving shelf position with ID {}: {}", shelfPosition.getId(),
-          e.getMessage());
-      throw e;
     }
   }
 
-  // Retrieve a shelf position by its ID
   @Override
-  public Map<String, Object> getShelfPosition(long shelfPositionId) {
-    logger.info("Fetching shelf position with ID: {}", shelfPositionId);
-    try (var session = driver.session()) {
-      return session.executeRead(tx -> {
+  public void createShelf(ShelfV0 shelf) {
+    try (Session session = driver.session()) {
+      session.executeWriteWithoutResult(tx -> {
         String query = """
-            MATCH (s:ShelfPositionV0 {id:$shelfPositionId})
+            CREATE (s: Shelf {id: $shelfId})
+            SET s.name = $shelfName, s.shelfType = $shelfType, s.isDeleted = 'N'
+            WITH s, range(1, $associatedShelfPositions) AS positionNumbers
+            FOREACH (position IN positionNumbers |
+                CREATE (sp: ShelfPosition {position: position})
+                MERGE (s)-[r:HAS_POSITION]->(sp)
+                SET r.isDeleted = 'N'
+            )
             RETURN s;
             """;
-        var record = tx.run(query, Values.parameters("shelfPositionId", shelfPositionId));
-        if (!record.hasNext()) {
-          logger.warn("Shelf position with ID {} not found", shelfPositionId);
-          throw new RecordNotFoundException("No ShelfPositionV0 is present with the id: " + shelfPositionId);
+
+        tx.run(query, Values.parameters(
+            "shelfId", shelf.getId(),
+            "shelfName", shelf.getName(),
+            "shelfType", shelf.getShelfType(),
+            "associatedShelfPositions", shelf.getAssociatedShelfPositions()));
+      });
+    }
+  }
+
+  @Override
+  public void modifyShelf(Long shelfId, ShelfV0 shelf) {
+    try (Session session = driver.session()) {
+      session.executeWriteWithoutResult(tx -> {
+        String query = """
+            MATCH (s: Shelf {id: $shelfId})
+            WHERE s.isDeleted = 'N'
+            SET s.name = $shelfName, s.shelfType = $shelfType , s.modifiedCredentialsAt = datetime()
+            RETURN s;
+            """;
+
+        tx.run(query, Values.parameters(
+            "shelfId", shelfId,
+            "shelfName", shelf.getName(),
+            "shelfType", shelf.getShelfType()));
+      });
+    }
+  }
+
+  @Override
+  public Map<String, Object> getShelfById(Long shelfId) {
+    try (Session session = driver.session()) {
+      return session.executeRead(tx -> {
+        String query = """
+            MATCH (s:Shelf {id: $shelfId})-[:HAS_POSITION]->(sp:ShelfPosition)
+            WHERE s.isDeleted = 'N'
+            RETURN s AS shelf, collect(sp.position) AS positions
+            """;
+
+        Result result = tx.run(query, Values.parameters("shelfId", shelfId));
+        if (!result.hasNext()) {
+          throw new ShelfNotFoundException("Shelf with id " + shelfId + " is not present in the database");
         }
-        logger.info("Shelf position with ID {} fetched successfully", shelfPositionId);
-        return record.single().get("s").asNode().asMap();
+
+        Record record = result.single();
+        Map<String, Object> shelfData = new HashMap<>(record.get("shelf").asNode().asMap());
+        shelfData.put("positions", record.get("positions").asList());
+
+        return shelfData;
       });
-    } catch (RecordNotFoundException e) {
-      logger.warn(e.getMessage());
-      throw e;
-    } catch (Exception e) {
-      logger.error("Unexpected error while fetching shelf position with ID {}: {}", shelfPositionId, e.getMessage());
-      throw e;
     }
   }
 
-  // Assign a shelf position to a device
-  @Override
-  public void addShelfPositionToDevice(Long deviceId, Long shelfPositionId) {
-    logger.info("Assigning shelf position with ID {} to device with ID {}", shelfPositionId, deviceId);
-    try (var session = driver.session()) {
-      session.executeWriteWithoutResult(tx -> {
-        String query = """
-                MATCH (d:Device {id: $deviceId}), (s: ShelfPositionV0 {id: $shelfPositionId})
-                MERGE (d)-[:HAS]->(s)
-                SET s.deviceId = $deviceId
-                RETURN d AS device, s AS shelf
-            """;
-
-        tx.run(query, Values.parameters("deviceId", deviceId, "shelfPositionId", shelfPositionId));
-        logger.info("Shelf position with ID {} successfully assigned to device with ID {}", shelfPositionId, deviceId);
-      });
-    } catch (Exception e) {
-      logger.error("Error while assigning shelf position with ID {} to device with ID {}: {}", shelfPositionId,
-          deviceId, e.getMessage());
-      throw e;
-    }
-  }
-
-  // Assign a shelf to a shelf position
-  @Override
-  public void addShelfToShelfPosition(Long shelfId, Long shelfPositionId) {
-    logger.info("Assigning shelf with ID {} to shelf position with ID {}", shelfId, shelfPositionId);
-    try (var session = driver.session()) {
-      session.executeWriteWithoutResult(tx -> {
-        String query = """
-                MATCH (sp: ShelfPositionV0 {id: $shelfPositionId})
-                MATCH (s: ShelfV0 {id: $shelfId})
-                MERGE (sp)-[:HAS]->(s)
-                SET s.shelfPositionId = $shelfPositionId
-                RETURN sp AS shelfPosition, s AS shelfNode;
-            """;
-
-        tx.run(query, Values.parameters("shelfPositionId", shelfPositionId, "shelfId", shelfId));
-        logger.info("Shelf with ID {} successfully assigned to shelf position with ID {}", shelfId, shelfPositionId);
-      });
-    } catch (Exception e) {
-      logger.error("Error while assigning shelf with ID {} to shelf position with ID {}: {}", shelfId, shelfPositionId,
-          e.getMessage());
-      throw e;
-    }
-  }
-
-  @Override
-  public List<Map<String, Object>> listAllShelfPositionNodes() {
-    try (var session = driver.session()) {
-      var res = session.executeRead(
-          tx -> {
-            String query = """
-                MATCH (sp : ShelfPositionV0)
-                RETURN sp
-                """;
-
-            var queryRes = tx.run(query);
-            List<Map<String, Object>> shelfPositionList = new ArrayList<>();
-            while (queryRes.hasNext()) {
-              var record = queryRes.next();
-              Map<String, Object> shelfPositionMap = record.get("sp").asNode().asMap();
-              shelfPositionList.add(shelfPositionMap);
-            }
-            return shelfPositionList;
-          });
-      return res;
-    }
-  }
-
-  @Override
-  public List<Map<String, Object>> listAllShelfNodes() {
-    try (var session = driver.session()) {
-      var res = session.executeRead(
-          tx -> {
-            String query = """
-                MATCH (s: ShelfV0)
-                RETURN s
-                """;
-
-            var queryRes = tx.run(query);
-            List<Map<String, Object>> shelfList = new ArrayList<>();
-            while (queryRes.hasNext()) {
-              var record = queryRes.next();
-              Map<String, Object> shelfMap = record.get("s").asNode().asMap();
-              shelfList.add(shelfMap);
-            }
-            return shelfList;
-          });
-      return res;
-    }
-  }
 }
