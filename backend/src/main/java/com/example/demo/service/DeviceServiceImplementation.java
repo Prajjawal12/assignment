@@ -31,6 +31,7 @@ public class DeviceServiceImplementation implements DeviceService {
             MATCH (d: Device {id:$deviceId})
             WHERE d.isDeleted = 'N'
             SET d.deviceName = $deviceName, d.deviceType = $deviceType, d.credentialsModifiedAt = datetime()
+            RETURN d;
             """;
 
         tx.run(query, Values.parameters("deviceId", device.getId(), "deviceName", device.getName(),
@@ -46,6 +47,7 @@ public class DeviceServiceImplementation implements DeviceService {
         String query = """
             CREATE (d: Device {id:$deviceId})
             SET d.name = $deviceName, d.deviceType = $deviceType, d.isDeleted = 'N'
+            RETURN d;
             """;
 
         tx.run(query, Values.parameters("deviceId", device.getId(),
@@ -75,16 +77,14 @@ public class DeviceServiceImplementation implements DeviceService {
 
   @Override
   public Map<String, Object> saveDevice(Device device, boolean confirmModification) {
-    try (Session session = driver.session()) {
-      return session.executeWrite(tx -> {
-        if (confirmModification) {
-          modifyDevice(device.getId(), device);
-        } else {
-          createDevice(device);
-        }
-        return getDeviceById(device.getId());
-      });
+
+    if (confirmModification) {
+      modifyDevice(device.getId(), device);
+    } else {
+      createDevice(device);
     }
+    return getDeviceById(device.getId());
+
   }
 
   @Override
