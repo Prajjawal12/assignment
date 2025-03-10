@@ -2,7 +2,6 @@ package com.example.demo.service;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import com.example.demo.entity.ShelfV0;
 
@@ -17,11 +16,13 @@ public interface InventoryService {
 
   public Map<String, Object> getShelfById(Long shelfId);
 
-  public Optional<Map<String, Object>> getConnectedShelfPosition(Long deviceId);
+  public List<Map<String, Object>> getAllShelves();
+
+  public List<Map<String, Object>> getAllConnectedShelfPositions();
 
   public List<Map<String, Object>> getAvailableShelfPositions(Long shelfId);
 
-  public void addDeviceToShelfPosition(Long deviceId, Long shelfId, Map<String, Object> shelfPosition);
+  public void addDeviceToShelfPosition(Long deviceId, Long shelfId, Long position);
 
-  public void removeDeviceFromShelfPosition(Long deviceId);
+  public void removeDeviceFromShelfPosition(Long relationId1, Long relationId2);
 }

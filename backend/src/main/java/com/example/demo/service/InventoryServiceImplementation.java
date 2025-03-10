@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Record;
@@ -84,8 +83,8 @@ public class InventoryServiceImplementation implements InventoryService {
     try (Session session = driver.session()) {
       return session.executeRead(tx -> {
         String query = """
-            MATCH (s:ShelfV0 {id: $shelfId})-[r:HAS_SHELF_POSITION]->(sp:ShelfPositionV0)
-            WHERE s.isDeleted = 'N' AND r.isDeleted = 'Y'
+            MATCH (s:ShelfV0 {id: $shelfId})-[:HAS_SHELF_POSITION]->(sp:ShelfPositionV0)
+            WHERE s.isDeleted = 'N'
             RETURN s AS shelf, collect(sp.position) AS positions;
             """;
 
@@ -103,25 +102,64 @@ public class InventoryServiceImplementation implements InventoryService {
     }
   }
 
-  public Optional<Map<String, Object>> getConnectedShelfPosition(Long deviceId) {
+  public void addDeviceToShelfPosition(Long deviceId, Long shelfId, Long position) {
+    try (Session session = driver.session()) {
+      session.executeWriteWithoutResult(tx -> {
+        String query = """
+            MATCH (s:ShelfV0 {id: $shelfId})-[r2:HAS_SHELF_POSITION]->(sp:ShelfPositionV0)
+            MATCH (d:Device {id: $deviceId})
+            WHERE d.isDeleted = 'N' AND sp.isActive = 'N' AND sp.position = $position
+            MERGE (d)-[r1:HAS_SHELF]->(s)
+            ON CREATE SET r1.isDeleted = 'N'
+            SET sp.isActive = 'Y' , r2.isDeleted = 'N'
+            RETURN d, s, sp;
+            """;
+
+        tx.run(query, Values.parameters(
+            "deviceId", deviceId,
+            "shelfId", shelfId,
+            "position", position));
+      });
+    }
+  }
+
+  public List<Map<String, Object>> getAllConnectedShelfPositions() {
     try (Session session = driver.session()) {
       return session.executeRead(tx -> {
         String query = """
-            MATCH (d:Device {id: $deviceId})-[:HAS_SHELF]->(s:ShelfV0)-[:HAS_SHELF_POSITION]->(sp:ShelfPositionV0)
-            WHERE d.isDeleted = 'N' AND sp.isActive = 'Y'
-            RETURN s.id AS shelfId, properties(sp) AS shelfPosition;
+            MATCH (d:Device)-[r1:HAS_SHELF]->(s:ShelfV0)-[r2:HAS_SHELF_POSITION]->(sp:ShelfPositionV0)
+            WHERE d.isDeleted = 'N' AND sp.isActive = 'Y' AND r1.isDeleted = 'N' AND r2.isDeleted = 'N'
+            RETURN d AS deviceId , s.id AS shelfId , sp.position AS shelfPosition, id(r1) AS relationId1 , id(r2) AS relationId2;
             """;
-
-        Result result = tx.run(query, Values.parameters("deviceId", deviceId));
-
-        if (result.hasNext()) {
+        Result result = tx.run(query);
+        List<Map<String, Object>> results = new ArrayList<>();
+        while (result.hasNext()) {
           Record record = result.next();
-          Map<String, Object> response = new HashMap<>();
-          response.put("shelfId", record.get("shelfId").asLong());
-          response.put("shelfPosition", record.get("shelfPosition").asMap());
-          return Optional.of(response);
+
+          Map<String, Object> recordMap = new HashMap<>();
+          recordMap.put("deviceId", record.get("deviceId").asLong());
+          recordMap.put("shelfId", record.get("shelfId").asLong());
+          recordMap.put("position", record.get("shelfPosition").asLong());
+          recordMap.put("relationId1", record.get("relationId1").asLong());
+          recordMap.put("relationId2", record.get("relationId2").asLong());
+          results.add(recordMap);
         }
-        return Optional.empty();
+        return results;
+      });
+    }
+  }
+
+  public void removeDeviceFromShelfPosition(Long relationId1, Long relationId2) {
+    try (Session session = driver.session()) {
+      session.executeWriteWithoutResult(tx -> {
+        String query = """
+            MATCH ()-[r1:HAS_SHELF]->(s:ShelfV0)-[r2:HAS_SHELF_POSITION]->(sp:ShelfPositionV0)
+            WHERE id(r1) = $relationId1 AND id(r2)=$relationId2
+            SET r1.isDeleted = 'Y' , r2.isDeleted = 'Y' , sp.isActive = 'N'
+
+                """;
+
+        tx.run(query, Values.parameters("relationId1", relationId1, "relationId2", relationId2));
       });
     }
   }
@@ -132,8 +170,8 @@ public class InventoryServiceImplementation implements InventoryService {
     try (Session session = driver.session()) {
       session.executeRead(tx -> {
         String query = """
-            MATCH (s:ShelfV0 {id: $shelfId})-[:HAS_SHELF_POSITION]->(sp:ShelfPositionV0)
-            WHERE sp.isActive = 'N'
+            MATCH (s:ShelfV0 {id: $shelfId})-[r:HAS_SHELF_POSITION]->(sp:ShelfPositionV0)
+            WHERE sp.isActive = 'N' AND r.isDeleted = 'Y'
             RETURN properties(sp) AS shelfPosition;
             """;
 
@@ -150,38 +188,17 @@ public class InventoryServiceImplementation implements InventoryService {
     return availablePositions;
   }
 
-  public void addDeviceToShelfPosition(Long deviceId, Long shelfId, Map<String, Object> shelfPosition) {
+  public List<Map<String, Object>> getAllShelves() {
     try (Session session = driver.session()) {
-      session.executeWriteWithoutResult(tx -> {
+      return session.executeRead(tx -> {
         String query = """
-            MATCH (s:ShelfV0 {id: $shelfId})-[:HAS_SHELF_POSITION]->(sp:ShelfPositionV0)
-            MATCH (d:Device {id: $deviceId})
-            WHERE d.isDeleted = 'N' AND sp.isActive = 'N'
-            MERGE (d)-[r1:HAS_SHELF]->(s)
-            ON CREATE SET r1.isDeleted = 'N'
-            SET sp.isActive = 'Y'
-            RETURN d, s, sp;
+            MATCH (s:ShelfV0)
+            WHERE s.isDeleted = 'N'
+            RETURN s;
             """;
 
-        tx.run(query, Values.parameters(
-            "deviceId", deviceId,
-            "shelfId", shelfId));
-      });
-    }
-  }
-
-  public void removeDeviceFromShelfPosition(Long deviceId) {
-    try (Session session = driver.session()) {
-      session.executeWriteWithoutResult(tx -> {
-        String query = """
-            MATCH (d:Device {id: $deviceId})-[r1:HAS_SHELF]->(s:ShelfV0)
-            MATCH (s)-[:HAS_SHELF_POSITION]->(sp:ShelfPositionV0)
-            WHERE d.isDeleted = 'N' AND sp.isActive = 'Y'
-            SET r1.isDeleted = 'Y', sp.isActive = 'N'
-            RETURN d, s, sp;
-            """;
-
-        tx.run(query, Values.parameters("deviceId", deviceId));
+        Result result = tx.run(query);
+        return result.list(record -> record.get("s").asNode().asMap());
       });
     }
   }
