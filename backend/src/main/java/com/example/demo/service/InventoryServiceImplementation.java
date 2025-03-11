@@ -13,7 +13,9 @@ import org.neo4j.driver.Values;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.example.demo.customExceptions.DeviceAlreadyAssignedToShelfPositionException;
 import com.example.demo.customExceptions.ShelfNotFoundException;
+import com.example.demo.customExceptions.ShelfPositionAlreadyOccupiedException;
 import com.example.demo.entity.ShelfV0;
 
 @Service
@@ -107,6 +109,39 @@ public class InventoryServiceImplementation implements InventoryService {
 
       session.executeWriteWithoutResult(tx -> {
         String query = """
+            OPTIONAL MATCH (d:Device {id:$deviceId})-[r1:HAS_SHELF]->(:ShelfV0)-[r2:HAS_SHELF_POSITION]->(sp1:ShelfPositionV0)
+            WHERE d.isDeleted = 'N' AND r1.isDeleted = 'N' AND sp1.isActive = 'Y' AND r2.isDeleted = 'N'
+
+
+            OPTIONAL MATCH (:ShelfV0 {id: $shelfId})-[r:HAS_SHELF_POSITION]->(sp2:ShelfPositionV0)
+            WHERE r.isDeleted = 'N' AND sp2.isActive = 'Y'
+            MATCH (otherDevice : Device)-[r3:HAS_SHELF]->(:ShelfV0)-[r4:HAS_SHELF_POSITION]->(sp2 : ShelfPositionV0)
+            WHERE sp2.isActive = 'Y' AND sp2.position = $position AND otherDevice.isDeleted = 'N' AND r3.isDeleted = 'N' AND r4.isDeleted = 'N'
+            RETURN COUNT(sp1) AS assignedPositionToDevicesCount , COUNT(otherDevice) AS countOfDevicesOccupyingThePosition;
+             """;
+
+        Result result = tx.run(query,
+            Values.parameters("deviceId", deviceId, "shelfId", shelfId, "position", position));
+
+        Record record = result.single();
+
+        int assignedPositionsToDevicesCount = record.get("assignedPositionToDevicesCount").asInt();
+        int countOfDevicesOccupyingThePosition = record.get("countOfDevicesOccupyingThePosition").asInt();
+        System.out.println(countOfDevicesOccupyingThePosition);
+        System.out.println(assignedPositionsToDevicesCount);
+        if (assignedPositionsToDevicesCount > 0) {
+          throw new DeviceAlreadyAssignedToShelfPositionException(
+              "Device with Id: " + deviceId + " is already assigned to a shelf position");
+        }
+
+        if (countOfDevicesOccupyingThePosition > 0) {
+          throw new ShelfPositionAlreadyOccupiedException("Shelf Position " + position + " belong to Shelf with ID "
+              + shelfId + " is already assigned to a device");
+        }
+      });
+
+      session.executeWriteWithoutResult(tx -> {
+        String query = """
             MATCH (s:ShelfV0 {id: $shelfId})-[r2:HAS_SHELF_POSITION]->(sp:ShelfPositionV0)
             MATCH (d:Device {id: $deviceId})
             WHERE d.isDeleted = 'N' AND sp.isActive = 'N' AND sp.position = $position AND NOT EXISTS {
@@ -124,6 +159,7 @@ public class InventoryServiceImplementation implements InventoryService {
             "shelfId", shelfId,
             "position", position));
       });
+
     }
   }
 
