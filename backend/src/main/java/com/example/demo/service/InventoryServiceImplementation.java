@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Record;
@@ -47,7 +48,7 @@ public class InventoryServiceImplementation implements InventoryService {
             FOREACH (position IN positionNumbers |
                 CREATE (sp: ShelfPositionV0 {position: position , isActive : 'N'})
                 CREATE (s)-[r:HAS_SHELF_POSITION]->(sp)
-                SET r.isDeleted = 'Y'
+                SET r.isDeleted = 'Y' , r.createdAt = datetime() , r.uuid = $uuid
             )
             RETURN s;
             """;
@@ -56,7 +57,8 @@ public class InventoryServiceImplementation implements InventoryService {
             "shelfId", shelf.getId(),
             "shelfName", shelf.getName(),
             "shelfType", shelf.getShelfType(),
-            "associatedShelfPositions", shelf.getAssociatedShelfPositions()));
+            "associatedShelfPositions", shelf.getAssociatedShelfPositions(),
+            "uuid", UUID.randomUUID().toString()));
       });
     }
   }
@@ -106,60 +108,73 @@ public class InventoryServiceImplementation implements InventoryService {
 
   public void addDeviceToShelfPosition(Long deviceId, Long shelfId, Long position) {
     try (Session session = driver.session()) {
+      session.executeRead(tx -> {
+        String checkQuery = """
+            MATCH (d:Device {id: $deviceId})-[r1:HAS_SHELF]->(s:ShelfV0 {id:$shelfId})-[r2:HAS_SHELF_POSITION]->(sp:ShelfPositionV0 {position : $position})
+            WHERE d.isDeleted = 'N' AND r1.isDeleted = 'N' AND r2.isDeleted = 'N' AND sp.isActive = 'Y'
+            RETURN COUNT(d) > 0 AS deviceAlreadyAssigned;
+            """;
 
-      session.executeWriteWithoutResult(tx -> {
-        String query = """
-            OPTIONAL MATCH (d:Device {id:$deviceId})-[r1:HAS_SHELF]->(:ShelfV0)-[r2:HAS_SHELF_POSITION]->(sp1:ShelfPositionV0)
-            WHERE d.isDeleted = 'N' AND r1.isDeleted = 'N' AND sp1.isActive = 'Y' AND r2.isDeleted = 'N'
-
-
-            OPTIONAL MATCH (:ShelfV0 {id: $shelfId})-[r:HAS_SHELF_POSITION]->(sp2:ShelfPositionV0)
-            WHERE r.isDeleted = 'N' AND sp2.isActive = 'Y'
-            MATCH (otherDevice : Device)-[r3:HAS_SHELF]->(:ShelfV0)-[r4:HAS_SHELF_POSITION]->(sp2 : ShelfPositionV0)
-            WHERE sp2.isActive = 'Y' AND sp2.position = $position AND otherDevice.isDeleted = 'N' AND r3.isDeleted = 'N' AND r4.isDeleted = 'N'
-            RETURN COUNT(sp1) AS assignedPositionToDevicesCount , COUNT(otherDevice) AS countOfDevicesOccupyingThePosition;
-             """;
-
-        Result result = tx.run(query,
+        Result checkResult = tx.run(checkQuery,
             Values.parameters("deviceId", deviceId, "shelfId", shelfId, "position", position));
-
-        Record record = result.single();
-
-        int assignedPositionsToDevicesCount = record.get("assignedPositionToDevicesCount").asInt();
-        int countOfDevicesOccupyingThePosition = record.get("countOfDevicesOccupyingThePosition").asInt();
-        System.out.println(countOfDevicesOccupyingThePosition);
-        System.out.println(assignedPositionsToDevicesCount);
-        if (assignedPositionsToDevicesCount > 0) {
+        boolean deviceAlreadyAssigned = checkResult.single().get("deviceAlreadyAssigned").asBoolean();
+        if (deviceAlreadyAssigned) {
           throw new DeviceAlreadyAssignedToShelfPositionException(
-              "Device with Id: " + deviceId + " is already assigned to a shelf position");
+              "Device with ID: " + deviceId + " is already assigned to this shelf position");
         }
 
-        if (countOfDevicesOccupyingThePosition > 0) {
+        String occupiedQuery = """
+            MATCH (:Device)-[r1:HAS_SHELF]->(:ShelfV0 {id:$shelfId})-[r2:HAS_SHELF_POSITION]->(sp:ShelfPosition {position: $position})
+            WHERE r1.isDeleted = 'N' AND r2.isDeleted = 'N' AND sp.isActive = 'Y'
+            RETURN COUNT(sp) > 0 AS positionOccupied;
+            """;
+
+        Result occupiedResult = tx.run(occupiedQuery, Values.parameters("shelfId", shelfId, "position", position));
+        boolean positionOccupied = occupiedResult.single().get("positionOccupied").asBoolean();
+
+        if (positionOccupied) {
           throw new ShelfPositionAlreadyOccupiedException("Shelf Position " + position + " belong to Shelf with ID "
               + shelfId + " is already assigned to a device");
         }
+
+        return null;
       });
 
       session.executeWriteWithoutResult(tx -> {
-        String query = """
-            MATCH (s:ShelfV0 {id: $shelfId})-[r2:HAS_SHELF_POSITION]->(sp:ShelfPositionV0)
-            MATCH (d:Device {id: $deviceId})
-            WHERE d.isDeleted = 'N' AND sp.isActive = 'N' AND sp.position = $position AND NOT EXISTS {
-              MATCH (d)-[r1:HAS_SHELF]->(s)-[r2:HAS_SHELF_POSITION]->(sp)
-              WHERE r1.isDeleted = 'N' AND r2.isDeleted = 'N' AND sp.isActive = 'Y'
-            }
-            MERGE (d)-[r1:HAS_SHELF]->(s)
+        String assignDeviceToShelfQuery = """
+            MATCH(d:Device {id:$deviceId}) , (s:ShelfV0 {id:$shelfId})
+            WHERE d.isDeleted = 'N'
+            CREATE (d)-[r1:HAS_SHELF]->(s)
             SET r1.isDeleted = 'N'
-            SET sp.isActive = 'Y' , r2.isDeleted = 'N'
-            RETURN d, s, sp;
+             RETURN d,s;
             """;
 
-        tx.run(query, Values.parameters(
-            "deviceId", deviceId,
-            "shelfId", shelfId,
-            "position", position));
+        tx.run(assignDeviceToShelfQuery, Values.parameters("deviceId", deviceId, "shelfId", shelfId));
       });
 
+      session.executeWriteWithoutResult(tx -> {
+        String assignShelfPositionQuery = """
+            MATCH (s:ShelfV0 {id:$shelfId})-[r2:HAS_SHELF_POSITION]->(sp:ShelfPositionV0 {position : $position})
+            WHERE sp.isActive = 'N'
+            OPTIONAL MATCH (s)-[r2:HAS_SHELF_POSITION]->(sp)
+            WHERE r2.isDeleted = 'Y'
+
+            WITH s , sp , r2
+            WHERE r2 IS NOT NULL
+
+
+            SET r2.isDeleted = 'N' , sp.isActive = 'Y' , r2.createdAt = datetime() , r2.uuid = $uuid
+            WITH s, sp
+            WHERE r2 IS NULL
+
+            CREATE (s)-[r3:HAS_SHELF_POSITION]->(sp)
+            SET r3.isDeleted = 'N' , sp.isActive = 'Y' , r3.createdAt = datetime() , r3.uuid = $uuid
+
+            RETURN s , sp;
+            """;
+        tx.run(assignShelfPositionQuery,
+            Values.parameters("shelfId", shelfId, "position", position, "uuid", UUID.randomUUID().toString()));
+      });
     }
   }
 
