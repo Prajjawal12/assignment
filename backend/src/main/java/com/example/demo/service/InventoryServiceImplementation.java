@@ -184,7 +184,7 @@ public class InventoryServiceImplementation implements InventoryService {
         String query = """
             MATCH (d:Device)-[r1:HAS_SHELF]->(s:ShelfV0)-[r2:HAS_SHELF_POSITION]->(sp:ShelfPositionV0)
             WHERE d.isDeleted = 'N' AND sp.isActive = 'Y' AND r1.isDeleted = 'N' AND r2.isDeleted = 'N'
-            RETURN d.id AS deviceId , s.id AS shelfId , sp.position AS shelfPosition, id(r1) AS relationId1 , id(r2) AS relationId2;
+            RETURN d.id AS deviceId , s.id AS shelfId , sp.position AS shelfPosition, r1.uuid AS relationId1 , r2.uuid AS relationId2;
             """;
         Result result = tx.run(query);
         List<Map<String, Object>> results = new ArrayList<>();
