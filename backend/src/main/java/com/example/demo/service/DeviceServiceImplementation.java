@@ -95,6 +95,10 @@ public class DeviceServiceImplementation implements DeviceService {
             MATCH (d:Device {id: $deviceId})
             WHERE d.isDeleted = 'N'
             SET d.isDeleted = 'Y'
+            WITH d
+            OPTIONAL MATCH (d:Device {id:$deviceId})-[r1:HAS_SHELF]->(s:ShelfV0)-[r2:HAS_SHELF_POSITION]->(sp:ShelfPositionV0)
+            WHERE r1 IS NOT NULL AND r2 IS NOT NULL AND sp IS NOT NULL
+            SET r1.isDeleted = 'Y' , r2.isDeleted = 'Y' , sp.isActive = 'N'
             RETURN d.id AS deletedDeviceId;
             """;
 

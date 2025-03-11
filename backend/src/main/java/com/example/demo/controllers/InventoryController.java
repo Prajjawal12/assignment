@@ -18,7 +18,8 @@ public class InventoryController {
   private InventoryServiceImplementation inventoryServiceImplementation;
 
   // Saves a new shelf to the inventory
-  @PostMapping("/shelf")
+  // @PostMapping("/shelf")
+  @RequestMapping(value = "/shelf", method = RequestMethod.POST)
   public ResponseEntity<Map<String, Object>> saveShelf(@RequestBody ShelfV0 shelf,
       @RequestParam Boolean confirmModification) {
     Map<String, Object> result = inventoryServiceImplementation.saveShelf(shelf, confirmModification);
@@ -26,23 +27,27 @@ public class InventoryController {
 
   }
 
-  @GetMapping("/connected-positions")
+  // @GetMapping("/connected-positions")
+  @RequestMapping(value = "/connected-positions", method = RequestMethod.GET)
   public ResponseEntity<List<Map<String, Object>>> getAllConnectedPositions() {
     return ResponseEntity.ok(inventoryServiceImplementation.getAllConnectedShelfPositions());
   }
 
-  @DeleteMapping("/connected-positions")
+  // @DeleteMapping("/connected-positions")
+  @RequestMapping(value = "/connected-positions", method = RequestMethod.DELETE)
   public ResponseEntity<Void> deleteConnectedPosition(@RequestParam Long relationId1, @RequestParam Long relationId2) {
     inventoryServiceImplementation.removeDeviceFromShelfPosition(relationId1, relationId2);
     return ResponseEntity.ok().build();
   }
 
-  @GetMapping("/shelves/{shelfId}/available-positions")
+  // @GetMapping("/shelves/{shelfId}/available-positions")
+  @RequestMapping(value = "/shelves/{shelfId}/available-positions", method = RequestMethod.GET)
   public ResponseEntity<List<Map<String, Object>>> getAvailablePositions(@PathVariable Long shelfId) {
     return ResponseEntity.ok(inventoryServiceImplementation.getAvailableShelfPositions(shelfId));
   }
 
-  @PostMapping("/connected-positions")
+  // @PostMapping("/connected-positions")
+  @RequestMapping(value = "/connected-positions", method = RequestMethod.POST)
   public ResponseEntity<Void> addConnectedPosition(@RequestParam Long deviceId, @RequestParam Long shelfId,
       @RequestParam Long position) {
     inventoryServiceImplementation.addDeviceToShelfPosition(deviceId, shelfId, position);

@@ -104,13 +104,17 @@ public class InventoryServiceImplementation implements InventoryService {
 
   public void addDeviceToShelfPosition(Long deviceId, Long shelfId, Long position) {
     try (Session session = driver.session()) {
+
       session.executeWriteWithoutResult(tx -> {
         String query = """
             MATCH (s:ShelfV0 {id: $shelfId})-[r2:HAS_SHELF_POSITION]->(sp:ShelfPositionV0)
             MATCH (d:Device {id: $deviceId})
-            WHERE d.isDeleted = 'N' AND sp.isActive = 'N' AND sp.position = $position
+            WHERE d.isDeleted = 'N' AND sp.isActive = 'N' AND sp.position = $position AND NOT EXISTS {
+              MATCH (d)-[r1:HAS_SHELF]->(s)-[r2:HAS_SHELF_POSITION]->(sp)
+              WHERE r1.isDeleted = 'N' AND r2.isDeleted = 'N' AND sp.isActive = 'Y'
+            }
             MERGE (d)-[r1:HAS_SHELF]->(s)
-            ON CREATE SET r1.isDeleted = 'N'
+            SET r1.isDeleted = 'N'
             SET sp.isActive = 'Y' , r2.isDeleted = 'N'
             RETURN d, s, sp;
             """;
