@@ -1,5 +1,8 @@
 package com.example.modified_assignment_backend.service;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.neo4j.driver.Driver;
@@ -111,21 +114,26 @@ public class InventoryServiceImplementation implements InventoryService {
         try (Session session = driver.session()) {
             session.executeRead(tx -> {
                 String query = """
-                        MATCH (d:Device {id:$deviceId}), (s:ShelfPositionV0 {id:$shelfPositionId})
-                        RETURN count(d) AS deviceCount , count(s) AS shelfPositionCount;
+                        MATCH (d:Device {id:$deviceId}) RETURN count(d) AS deviceCount;
                         """;
-                Result result = tx.run(query,
-                        Values.parameters("deviceId", deviceId, "shelfPositionId", shelfPositionId));
-                Record record = result.single();
-                int deviceCount = record.get("deviceCount").asInt();
-                int shelfPositionCount = record.get("shelfPositionCount").asInt();
+                Result result = tx.run(query, Values.parameters("deviceId", deviceId));
+
+                int deviceCount = result.single().get("deviceCount").asInt();
 
                 if (deviceCount == 0) {
-                    throw new DeviceNotFoundException("Device with ID " + deviceId + " does not exist in the database");
+                    throw new DeviceNotFoundException("Device with Id " + deviceId + " does not exist in the database");
                 }
 
+                String checkShelfPositionQuery = """
+                        MATCH (sp:ShelfPositionV0 {id:$shelfPositionId})
+                        RETURN count(sp) AS shelfPositionCount;
+                        """;
+                Result result2 = tx.run(checkShelfPositionQuery, Values.parameters("shelfPositionId", shelfPositionId));
+
+                int shelfPositionCount = result2.single().get("shelfPositionCount").asInt();
+
                 if (shelfPositionCount == 0) {
-                    throw new RecordNotFoundException(
+                    throw new RuntimeException(
                             "Shelf Position with Id " + shelfPositionId + " does not exist in the database");
                 }
 
@@ -134,7 +142,7 @@ public class InventoryServiceImplementation implements InventoryService {
 
             session.executeWriteWithoutResult(tx -> {
                 String query = """
-                        MATCH (d:Device {id:$deviceId}) , (sp:ShelfPosition {id:$shelfPositionId})
+                        MATCH (d:Device {id:$deviceId}) , (sp:ShelfPositionV0 {id:$shelfPositionId})
                         MERGE (d)-[:HAS_SHELF_POSITION]->(sp)
                         MERGE (sp)-[:HAS_DEVICE]->(d)
                         RETURN d,sp;
@@ -149,40 +157,29 @@ public class InventoryServiceImplementation implements InventoryService {
     @Override
     public void addShelfToShelfPosition(Long shelfId, Long shelfPositionId) {
         try (Session session = driver.session()) {
+
             session.executeRead(tx -> {
-                String query = """
+
+                String checkShelfQuery = """
                         MATCH (s:ShelfV0 {id:$shelfId})
-                        MATCH (sp:ShelfPositionV0 {id:$shelfPositionId})
-                        RETURN count(s) AS shelves , count(sp) AS shelfPositions;
+                        RETURN count(s) AS shelfNodes;
                         """;
 
-                Result result = tx.run(query,
-                        Values.parameters("shelfId", shelfId, "shelfPositionId", shelfPositionId));
-                Record record = result.single();
-                int shelfCount = record.get("shelves").asInt();
-                int shelfPositionCount = record.get("shelfPositions").asInt();
-                if (shelfCount == 0) {
-                    throw new RecordNotFoundException(
-                            "No shelf node is present with Id " + shelfId + " in the database");
+                if (tx.run(checkShelfQuery, Values.parameters("shelfId", shelfId)).single().get("shelfNodes")
+                        .asInt() == 0) {
+                    throw new RuntimeException("Shelf with Id " + shelfId + " is not present in the database");
                 }
 
-                if (shelfPositionCount == 0) {
+                String checkShelfPositionQuery = """
+                        MATCH (s:ShelfPositionV0 {id:$shelfPositionId})
+                        RETURN count(s) AS shelfPositionNodes;
+                        """;
+
+                if (tx.run(checkShelfPositionQuery, Values.parameters("shelfPositionId", shelfPositionId)).single()
+                        .get("shelfPositionNodes")
+                        .asInt() == 0) {
                     throw new RuntimeException(
-                            "No shelf position node with ID " + shelfPositionId + " is present in the database");
-                }
-
-                String relationCheckQuery = """
-                        MATCH (sp:ShelfPosition {id:shelfPositionId})-[r]-(s:ShelfV0 {id:$shelfId})
-                        RETURN count(r) AS relationCount;
-                        """;
-                Result result2 = tx.run(relationCheckQuery,
-                        Values.parameters("shelfPositionId", shelfPositionId, "shelfId", shelfId));
-
-                Record record2 = result2.single();
-                int relationCount = record2.get("relationCount").asInt();
-
-                if (relationCount > 0) {
-                    throw new RuntimeException("Relation already exists between Shelf and ShelfPosition");
+                            "Shelf Position with Id " + shelfPositionId + " is not present in the database");
                 }
 
                 return null;
@@ -190,7 +187,7 @@ public class InventoryServiceImplementation implements InventoryService {
 
             session.executeWriteWithoutResult(tx -> {
                 String query = """
-                        MATCH (sp:ShelfPositionV0 {id:shelfPositionId}) , (s:ShelfV0 {id: $shelfId})
+                        MATCH (sp:ShelfPositionV0 {id:$shelfPositionId}) , (s:ShelfV0 {id: $shelfId})
                         MERGE (sp)-[:HAS_SHELF]->(s)
                         MERGE (s)-[:HAS_SHELF_POSITION]->(sp)
                         RETURN sp,s;
@@ -200,6 +197,59 @@ public class InventoryServiceImplementation implements InventoryService {
 
             });
 
+        }
+    }
+
+    @Override
+    public List<Map<String, Object>> listAllShelf() {
+        try (Session session = driver.session()) {
+            List<Map<String, Object>> list = session.executeRead(tx -> {
+                String query = "MATCH (s:ShelfV0) RETURN s AS shelfNodes";
+
+                Result result = tx.run(query);
+                List<Map<String, Object>> shelfList = new ArrayList<>();
+                while (result.hasNext()) {
+                    Record record = result.next();
+                    Map<String, Object> shelf = record.get("shelfNodes").asNode().asMap();
+                    shelfList.add(shelf);
+                }
+                return shelfList;
+            });
+
+            return list;
+        }
+    }
+
+    @Override
+    public Map<String, Object> listAssociatedShelfDetails(Long shelfId) {
+        try (Session session = driver.session()) {
+            Map<String, Object> shelfDetails = session.executeRead(tx -> {
+                String query = """
+                            MATCH (s:ShelfV0 {id:$shelfId})
+                            MATCH (s)-[:HAS_SHELF_POSITION]->(sp:ShelfPositionV0)
+                            WITH s,sp
+                            MATCH (sp)-[:HAS_DEVICE]->(d:Device)
+                            WITH s , sp , d
+                            RETURN s , sp  , d;
+                        """;
+
+                Result result = tx.run(query, Values.parameters("shelfId", shelfId));
+                Record record = result.single();
+                Map<String, Object> consolidatedInfo = new HashMap<>();
+
+                Map<String, Object> shelfMap = record.get("s").asNode().asMap();
+
+                Map<String, Object> shelfPositionMap = record.get("sp").asNode().asMap();
+
+                Map<String, Object> deviceMap = record.get("d").asNode().asMap();
+
+                consolidatedInfo.put("deviceDetails", deviceMap);
+                consolidatedInfo.put("shelfDetails", shelfMap);
+                consolidatedInfo.put("shelfPositionDetails", shelfPositionMap);
+
+                return consolidatedInfo;
+            });
+            return shelfDetails;
         }
     }
 

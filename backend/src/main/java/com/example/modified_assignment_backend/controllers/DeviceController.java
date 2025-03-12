@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.modified_assignment_backend.entity.Device;
 import com.example.modified_assignment_backend.service.DeviceServiceImplementation;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @RestController
 @RequestMapping("/api/device")
@@ -52,4 +53,5 @@ public class DeviceController {
         Map<String, Object> modifiedDevice = deviceServiceImplementation.modifyDevice(deviceId, device);
         return ResponseEntity.ok(modifiedDevice);
     }
+
 }

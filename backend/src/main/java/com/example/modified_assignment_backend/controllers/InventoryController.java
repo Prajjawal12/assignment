@@ -1,5 +1,6 @@
 package com.example.modified_assignment_backend.controllers;
 
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -74,23 +75,30 @@ public class InventoryController {
     public ResponseEntity<Void> addShelfPositionToDevice(@RequestParam Long deviceId,
             @RequestParam Long shelfPositionId)
             throws Exception {
-        try {
-            inventoryServiceImplementation.addShelfPositionToDevice(deviceId, shelfPositionId);
-            return ResponseEntity.ok().build();
-        } catch (Exception e) {
-            throw new Exception("Error occurred while adding shelf position to device: " + e.getMessage());
-        }
+
+        inventoryServiceImplementation.addShelfPositionToDevice(deviceId, shelfPositionId);
+        return ResponseEntity.ok().build();
+
     }
 
     // Adds a shelf to a shelf position
     @PostMapping("/add-shelf-to-shelf-position")
     public ResponseEntity<Void> addShelfToShelfPosition(@RequestParam Long shelfId, @RequestParam Long shelfPositionId)
             throws Exception {
-        try {
-            inventoryServiceImplementation.addShelfToShelfPosition(shelfId, shelfPositionId);
-            return ResponseEntity.ok().build();
-        } catch (Exception e) {
-            throw new Exception("Error occurred while adding shelf to shelf position: " + e.getMessage());
-        }
+
+        inventoryServiceImplementation.addShelfToShelfPosition(shelfId, shelfPositionId);
+        return ResponseEntity.ok().build();
+
     }
+
+    @GetMapping("/list-all-shelf")
+    public ResponseEntity<List<Map<String, Object>>> getAllShelfNodes() {
+        return ResponseEntity.ok(inventoryServiceImplementation.listAllShelf());
+    }
+
+    @GetMapping("/list-shelf-details/{shelfId}")
+    public ResponseEntity<Map<String, Object>> getShelfDetails(@PathVariable Long shelfId) {
+        return ResponseEntity.ok(inventoryServiceImplementation.listAssociatedShelfDetails(shelfId));
+    }
+
 }

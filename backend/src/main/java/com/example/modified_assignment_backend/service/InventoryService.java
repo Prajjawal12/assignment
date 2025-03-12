@@ -1,5 +1,6 @@
 package com.example.modified_assignment_backend.service;
 
+import java.util.List;
 import java.util.Map;
 
 import com.example.modified_assignment_backend.entity.ShelfPositionV0;
@@ -23,5 +24,9 @@ public interface InventoryService {
 
     // Associate a shelf with a shelf position
     public void addShelfToShelfPosition(Long shelfId, Long shelfPositionId);
+
+    public List<Map<String, Object>> listAllShelf();
+
+    public Map<String, Object> listAssociatedShelfDetails(Long shelfId);
 
 }
