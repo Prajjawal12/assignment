@@ -1,0 +1,23 @@
+<table *ngIf="shelves && shelves.length > 0">
+    <thead>
+        <tr>
+            <th *ngFor="let column of columns">{{column}}</th>
+        </tr>
+
+    </thead>
+
+
+    <tbody>
+        <tr *ngFor="let shelf of shelves">
+            <td>{{shelf.id}}</td>
+            <td>{{shelf.name}}</td>
+            <td>{{shelf.shelfType}}</td>
+            <td>{{shelf.shelfPositionId}}</td>
+        </tr>
+    </tbody>
+</table>
+
+
+<div *ngIf="shelves.length === 0 || !shelves">
+    <p>No Shelf Nodes present in database!</p>
+</div>
