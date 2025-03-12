@@ -107,25 +107,27 @@ public class InventoryServiceImplementation implements InventoryService {
   public void addDeviceToShelfPosition(Long deviceId, Long shelfId, Long position) {
     try (Session session = driver.session()) {
       session.executeRead(tx -> {
-        String checkQuery = """
-            MATCH (d:Device {id: $deviceId})-[r1:HAS_SHELF]->(s:ShelfV0 {id:$shelfId})-[r2:HAS_SHELF_POSITION]->(sp:ShelfPositionV0 {position : $position})
-            WHERE d.isDeleted = 'N' AND r1.isDeleted = 'N' AND r2.isDeleted = 'N' AND sp.isActive = 'Y'
-            RETURN COUNT(d) > 0 AS deviceAlreadyAssigned;
+        String deviceConnectedQuery = """
+            MATCH (d:Device {id: $deviceId})-[r1:HAS_SHELF]->(s:ShelfV0 {id:$shelfId})-[r2:HAS_SHELF_POSITION]->(sp:ShelfPositionV0)
+            WHERE d.isDeleted = 'N' AND r1.isDeleted = 'N' AND r2.isDeleted = 'N'
+            RETURN COUNT(sp) > 0 AS deviceAlreadyConnected;
             """;
 
-        Result checkResult = tx.run(checkQuery,
-            Values.parameters("deviceId", deviceId, "shelfId", shelfId, "position", position));
-        boolean deviceAlreadyAssigned = checkResult.single().get("deviceAlreadyAssigned").asBoolean();
+        Result checkResult = tx.run(deviceConnectedQuery,
+            Values.parameters("deviceId", deviceId, "shelfId", shelfId));
+        boolean deviceAlreadyAssigned = checkResult.single().get("deviceAlreadyConnected").asBoolean();
         if (deviceAlreadyAssigned) {
           throw new DeviceAlreadyAssignedToShelfPositionException(
-              "Device with ID: " + deviceId + " is already assigned to this shelf position");
+              "Device with ID: " + deviceId + " is already assigned to a shelf position on Shelf with ID "
+                  + shelfId);
         }
 
         String occupiedQuery = """
-            MATCH (:Device)-[r1:HAS_SHELF]->(:ShelfV0 {id:$shelfId})-[r2:HAS_SHELF_POSITION]->(sp:ShelfPosition {position: $position})
-            WHERE r1.isDeleted = 'N' AND r2.isDeleted = 'N' AND sp.isActive = 'Y'
+            MATCH (s:ShelfV0 {id:$shelfId})-[r:HAS_SHELF_POSITION]->(sp:ShelfPositionV0 {position : $position})
+            WHERE sp.deviceAssigned IS NOT NULL
             RETURN COUNT(sp) > 0 AS positionOccupied;
-            """;
+
+             """;
 
         Result occupiedResult = tx.run(occupiedQuery, Values.parameters("shelfId", shelfId, "position", position));
         boolean positionOccupied = occupiedResult.single().get("positionOccupied").asBoolean();
@@ -206,7 +208,7 @@ public class InventoryServiceImplementation implements InventoryService {
       session.executeRead(tx -> {
         String query = """
             MATCH (s:ShelfV0 {id: $shelfId})-[r:HAS_SHELF_POSITION]->(sp:ShelfPositionV0)
-            WHERE sp.isActive = 'N' AND r.isDeleted = 'Y'
+            WHERE sp.deviceAssigned IS NULL AND r.isDeleted = 'Y'
             RETURN properties(sp) AS shelfPosition;
             """;
 
