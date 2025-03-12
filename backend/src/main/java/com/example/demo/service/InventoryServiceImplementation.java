@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Record;
@@ -46,9 +45,9 @@ public class InventoryServiceImplementation implements InventoryService {
             SET s.name = $shelfName, s.shelfType = $shelfType, s.isDeleted = 'N'
             WITH s, range(1, $associatedShelfPositions) AS positionNumbers
             FOREACH (position IN positionNumbers |
-                CREATE (sp: ShelfPositionV0 {position: position , isActive : 'N'})
+                CREATE (sp: ShelfPositionV0 {position: position , deviceAssigned : null})
                 CREATE (s)-[r:HAS_SHELF_POSITION]->(sp)
-                SET r.isDeleted = 'Y' , r.createdAt = datetime() , r.uuid = $uuid
+                SET r.isDeleted = 'Y'
             )
             RETURN s;
             """;
@@ -57,8 +56,7 @@ public class InventoryServiceImplementation implements InventoryService {
             "shelfId", shelf.getId(),
             "shelfName", shelf.getName(),
             "shelfType", shelf.getShelfType(),
-            "associatedShelfPositions", shelf.getAssociatedShelfPositions(),
-            "uuid", UUID.randomUUID().toString()));
+            "associatedShelfPositions", shelf.getAssociatedShelfPositions()));
       });
     }
   }
@@ -146,35 +144,21 @@ public class InventoryServiceImplementation implements InventoryService {
             WHERE d.isDeleted = 'N'
             CREATE (d)-[r1:HAS_SHELF]->(s)
             SET r1.isDeleted = 'N'
-             RETURN d,s;
+            RETURN d,s;
             """;
 
-        tx.run(assignDeviceToShelfQuery, Values.parameters("deviceId", deviceId, "shelfId", shelfId));
-      });
+        tx.run(assignDeviceToShelfQuery,
+            Values.parameters("deviceId", deviceId, "shelfId", shelfId));
 
-      session.executeWriteWithoutResult(tx -> {
         String assignShelfPositionQuery = """
             MATCH (s:ShelfV0 {id:$shelfId})-[r2:HAS_SHELF_POSITION]->(sp:ShelfPositionV0 {position : $position})
-            WHERE sp.isActive = 'N'
-            OPTIONAL MATCH (s)-[r2:HAS_SHELF_POSITION]->(sp)
-            WHERE r2.isDeleted = 'Y'
-
-            WITH s , sp , r2
-            WHERE r2 IS NOT NULL
-
-
-            SET r2.isDeleted = 'N' , sp.isActive = 'Y' , r2.createdAt = datetime() , r2.uuid = $uuid
-            WITH s, sp
-            WHERE r2 IS NULL
-
-            CREATE (s)-[r3:HAS_SHELF_POSITION]->(sp)
-            SET r3.isDeleted = 'N' , sp.isActive = 'Y' , r3.createdAt = datetime() , r3.uuid = $uuid
-
-            RETURN s , sp;
-            """;
+            SET sp.deviceAssigned = $deviceId , r2.isDeleted = 'N'
+            RETURN s, sp;
+              """;
         tx.run(assignShelfPositionQuery,
-            Values.parameters("shelfId", shelfId, "position", position, "uuid", UUID.randomUUID().toString()));
+            Values.parameters("deviceId", deviceId, "shelfId", shelfId, "position", position));
       });
+
     }
   }
 
@@ -183,8 +167,8 @@ public class InventoryServiceImplementation implements InventoryService {
       return session.executeRead(tx -> {
         String query = """
             MATCH (d:Device)-[r1:HAS_SHELF]->(s:ShelfV0)-[r2:HAS_SHELF_POSITION]->(sp:ShelfPositionV0)
-            WHERE d.isDeleted = 'N' AND sp.isActive = 'Y' AND r1.isDeleted = 'N' AND r2.isDeleted = 'N'
-            RETURN d.id AS deviceId , s.id AS shelfId , sp.position AS shelfPosition, r1.uuid AS relationId1 , r2.uuid AS relationId2;
+            WHERE d.isDeleted = 'N' AND r1.isDeleted = 'N' AND r2.isDeleted = 'N' AND sp.deviceAssigned = d.id
+            RETURN d.id AS deviceId , s.id AS shelfId , sp.position AS shelfPosition;
             """;
         Result result = tx.run(query);
         List<Map<String, Object>> results = new ArrayList<>();
@@ -195,8 +179,6 @@ public class InventoryServiceImplementation implements InventoryService {
           recordMap.put("deviceId", record.get("deviceId").asLong());
           recordMap.put("shelfId", record.get("shelfId").asLong());
           recordMap.put("position", record.get("shelfPosition").asLong());
-          recordMap.put("relationId1", record.get("relationId1").asLong());
-          recordMap.put("relationId2", record.get("relationId2").asLong());
           results.add(recordMap);
         }
         return results;
@@ -204,17 +186,15 @@ public class InventoryServiceImplementation implements InventoryService {
     }
   }
 
-  public void removeDeviceFromShelfPosition(Long relationId1, Long relationId2) {
+  public void removeDeviceFromShelfPosition(Long deviceId, Long shelfId, Long position) {
     try (Session session = driver.session()) {
       session.executeWriteWithoutResult(tx -> {
         String query = """
-            MATCH ()-[r1:HAS_SHELF]->(s:ShelfV0)-[r2:HAS_SHELF_POSITION]->(sp:ShelfPositionV0)
-            WHERE id(r1) = $relationId1 AND id(r2)=$relationId2
-            SET r1.isDeleted = 'Y' , r2.isDeleted = 'Y' , sp.isActive = 'N'
-
+            MATCH (d:Device {id:$deviceId})-[r1:HAS_SHELF]->(s:ShelfV0 {id:$shelfId})-[r2:HAS_SHELF_POSITION]->(sp:ShelfPositionV0 {position:$position , deviceAssigned : $deviceId})
+            SET sp.deviceAssigned = null , r2.isDeleted = 'Y' , r1.isDeleted = 'Y'
                 """;
 
-        tx.run(query, Values.parameters("relationId1", relationId1, "relationId2", relationId2));
+        tx.run(query, Values.parameters("deviceId", deviceId, "shelfId", shelfId, "position", position));
       });
     }
   }

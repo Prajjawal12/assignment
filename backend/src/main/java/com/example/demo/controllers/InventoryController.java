@@ -35,8 +35,9 @@ public class InventoryController {
 
   // @DeleteMapping("/connected-positions")
   @RequestMapping(value = "/connected-positions", method = RequestMethod.DELETE)
-  public ResponseEntity<Void> deleteConnectedPosition(@RequestParam Long relationId1, @RequestParam Long relationId2) {
-    inventoryServiceImplementation.removeDeviceFromShelfPosition(relationId1, relationId2);
+  public ResponseEntity<Void> deleteConnectedPosition(@RequestParam Long deviceId, @RequestParam Long shelfId,
+      @RequestParam Long position) {
+    inventoryServiceImplementation.removeDeviceFromShelfPosition(deviceId, shelfId, position);
     return ResponseEntity.ok().build();
   }
 

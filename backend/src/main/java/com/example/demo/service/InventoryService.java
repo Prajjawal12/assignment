@@ -24,5 +24,5 @@ public interface InventoryService {
 
   public void addDeviceToShelfPosition(Long deviceId, Long shelfId, Long position);
 
-  public void removeDeviceFromShelfPosition(Long relationId1, Long relationId2);
+  public void removeDeviceFromShelfPosition(Long deviceId, Long relationId1, Long relationId2);
 }
