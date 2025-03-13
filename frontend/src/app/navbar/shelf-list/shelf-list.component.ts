@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { ShelfV0 } from '../../inventory/shelfv0.model';
 import { InventoryService } from '../../inventory.service';
 import { NgFor, NgIf } from '@angular/common';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-shelf-list',
@@ -11,9 +12,9 @@ import { NgFor, NgIf } from '@angular/common';
 })
 export class ShelfListComponent implements OnInit {
   shelves: ShelfV0[] = [];
-  columns: string[] = ['id', 'name', 'shelfType']
+  columns: string[] = ['id', 'name', 'shelfType', 'more info']
 
-  constructor(private inventoryService: InventoryService) {
+  constructor(private inventoryService: InventoryService, private router: Router) {
     console.log('Columns', this.columns);
   }
 
@@ -33,5 +34,9 @@ export class ShelfListComponent implements OnInit {
       }
 
     )
+  }
+
+  viewShelfDetails(shelfId: number): void {
+    this.router.navigate(['/shelf-details', shelfId])
   }
 }

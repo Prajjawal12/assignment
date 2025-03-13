@@ -8,10 +8,12 @@
 
     <tbody>
         <tr *ngFor="let shelf of shelves">
-            <!-- <td>{{shelf.id}}</td> -->
             <td>{{shelf.id}}</td>
             <td>{{shelf.name}}</td>
             <td>{{shelf.shelfType}}</td>
+            <td>
+                <button (click)="viewShelfDetails(shelf.id)">More Info</button>
+            </td>
         </tr>
     </tbody>
 </table>

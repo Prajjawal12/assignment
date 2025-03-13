@@ -10,6 +10,7 @@ import org.neo4j.driver.Record;
 import org.neo4j.driver.Result;
 import org.neo4j.driver.Session;
 import org.neo4j.driver.Values;
+import org.neo4j.driver.types.Node;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +20,8 @@ import com.example.modified_assignment_backend.customExceptions.DeviceNotFoundEx
 import com.example.modified_assignment_backend.customExceptions.RecordNotFoundException;
 import com.example.modified_assignment_backend.entity.ShelfPositionV0;
 import com.example.modified_assignment_backend.entity.ShelfV0;
+
+import lombok.val;
 
 @Service
 public class InventoryServiceImplementation implements InventoryService {
@@ -253,26 +256,35 @@ public class InventoryServiceImplementation implements InventoryService {
             Map<String, Object> shelfDetails = session.executeRead(tx -> {
                 String query = """
                             MATCH (s:ShelfV0 {id:$shelfId})
-                            MATCH (s)-[:HAS_SHELF_POSITION]->(sp:ShelfPositionV0)
-                            WITH s,sp
-                            MATCH (sp)-[:HAS_DEVICE]->(d:Device)
-                            WITH s , sp , d
-                            RETURN s , sp  , d;
+                           OPTIONAL MATCH (s)-[:HAS_SHELF_POSITION]->(sp:ShelfPositionV0)
+                           OPTIONAL MATCH (sp)-[:HAS_DEVICE]->(d:Device)
+                            WITH s,sp , collect(d) AS devices
+                            RETURN s , sp  , devices;
                         """;
 
                 Result result = tx.run(query, Values.parameters("shelfId", shelfId));
                 Record record = result.single();
+
                 Map<String, Object> consolidatedInfo = new HashMap<>();
 
                 Map<String, Object> shelfMap = record.get("s").asNode().asMap();
-
-                Map<String, Object> shelfPositionMap = record.get("sp").asNode().asMap();
-
-                Map<String, Object> deviceMap = record.get("d").asNode().asMap();
-
-                consolidatedInfo.put("deviceDetails", deviceMap);
                 consolidatedInfo.put("shelfDetails", shelfMap);
-                consolidatedInfo.put("shelfPositionDetails", shelfPositionMap);
+
+                if (record.containsKey("sp") && !record.get("sp").isNull()) {
+                    Map<String, Object> shelfPositionMap = record.get("sp").asNode().asMap();
+                    consolidatedInfo.put("shelfPositionDetails", shelfPositionMap);
+                }
+
+                List<Map<String, Object>> deviceList = new ArrayList<>();
+
+                if (record.containsKey("devices") && !record.get("devices").isNull()) {
+                    List<Node> deviceNodes = record.get("devices").asList(value -> value.asNode());
+                    for (Node node : deviceNodes) {
+                        deviceList.add(node.asMap());
+                    }
+
+                    consolidatedInfo.put("deviceDetails", deviceList);
+                }
 
                 return consolidatedInfo;
             });

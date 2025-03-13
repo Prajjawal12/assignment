@@ -1,0 +1,41 @@
+<div *ngIf="shelfDetails" class="shelf-details-container">
+    <div class="section">
+        <h2>Shelf Details</h2>
+        <p><strong>Shelf Id:</strong>{{shelfDetails.shelfDetails.id}}</p>
+        <p><strong>Shelf Name:</strong>{{shelfDetails.shelfDetails.name}}</p>
+        <p><strong>Shelf Type:</strong>{{shelfDetails.shelfDetails.shelfType}}</p>
+    </div>
+
+
+
+    <div *ngIf="shelfDetails.shelfPositionDetails" class="section">
+        <h2>Shelf Position Details</h2>
+        <p><strong>Position Id:</strong>{{shelfDetails.shelfPositionDetails.id}}</p>
+        <p><strong>Position Name:</strong>{{shelfDetails.shelfPositionDetails.name}}</p>
+    </div>
+
+
+    <div *ngIf="shelfDetails.deviceDetails && shelfDetails.deviceDetails.length > 0" class="section">
+        <h2>Device Details</h2>
+        <ul *ngIf="shelfDetails.deviceDetails && shelfDetails.deviceDetails.length > 0">
+            <li *ngFor="let device of shelfDetails.deviceDetails">
+                <p><strong>Device Id:</strong>{{device.id}}</p>
+                <p><strong>Device Name:</strong>{{device.name}}</p>
+                <p><strong>Device Type:</strong>{{device.deviceType}}</p>
+            </li>
+        </ul>
+
+    </div>
+    <div *ngIf="(!shelfDetails.deviceDetails || shelfDetails.deviceDetails.length === 0) && shelfDetails.shelfPositionDetails"
+        class="section">
+        <h2>Device Details</h2>
+        <p>No devices are associated with this shelf position.</p>
+    </div>
+
+    <div *ngIf="!shelfDetails.shelfPositionDetails" class="section">
+        <h2>Shelf Position Details</h2>
+        <p>No shelf position associated with this shelf.</p>
+
+    </div>
+
+</div>

@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 import { ShelfV0 } from './inventory/shelfv0.model'
 import { ShelfPositionV0 } from './inventory/shelfPositionv0.model'
 import { catchError, EMPTY, Observable } from 'rxjs';
+import { ShelfDetail } from './navbar/shelf-list/shelf-details/shelf-details.model';
 @Injectable({
   providedIn: 'root'
 })
@@ -51,9 +52,9 @@ export class InventoryService {
     return this.http.get<ShelfV0[]>(`${this.apiUrl}/list-all-shelf`)
   }
 
-  // getAllShelfPositionNodes(): Observable<ShelfPositionV0[]> {
-  //   return this.http.get<ShelfPositionV0[]>(`${this.apiUrl}/shelf-position/list`)
-  // }
+  getShelfDetails(shelfId: number): Observable<ShelfDetail> {
+    return this.http.get<ShelfDetail>(`${this.apiUrl}/list-shelf-details/${shelfId}`);
+  }
 
 
 }

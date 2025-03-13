@@ -1,0 +1,53 @@
+.shelf-details-container {
+    font-family: Arial, sans-serif;
+    padding: 20px;
+    max-width: 800px;
+    margin: 20px auto;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    background-color: #f9f9f9;
+}
+
+.section {
+    margin-bottom: 20px;
+    padding: 15px;
+    border: 1px solid #eee;
+    border-radius: 6px;
+    background-color: white;
+}
+
+
+.section h2 {
+    color: #333;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+}
+
+.section p {
+    margin: 5px 0;
+    color: #555;
+}
+
+.section ul {
+    list-style-type: node;
+    padding: 0;
+}
+
+.section li {
+    margin-bottom: 10px;
+    padding: 10px;
+    border: 1px solid #f0f0f0;
+    border-radius: 4px;
+    background-color: #f8f8f8;
+}
+
+.section li p {
+    margin: 3px 0;
+}
+
+.section li p strong {
+    font-weight: bold;
+    color: #333;
+}
