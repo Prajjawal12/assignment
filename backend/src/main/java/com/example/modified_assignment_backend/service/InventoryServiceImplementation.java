@@ -185,6 +185,30 @@ public class InventoryServiceImplementation implements InventoryService {
                             "Shelf Position with Id " + shelfPositionId + " is not present in the database");
                 }
 
+                String checkExistingShelfPositionRelationQuery = """
+                        MATCH (sp:ShelfPositionV0 {id:$shelfPositionId})-[:HAS_SHELF]->()
+                        RETURN count(sp) > 0 AS existingShelfPositionRelations;
+                        """;
+                boolean hasRelations = tx.run(checkExistingShelfPositionRelationQuery,
+                        Values.parameters("shelfId", shelfId, "shelfPositionId", shelfPositionId)).single()
+                        .get("existingShelfPositionRelations").asBoolean();
+                if (hasRelations) {
+                    throw new RuntimeException(
+                            "There is already an existing relationship between specified shelf position node and other shelf node");
+                }
+
+                String checkExistingShelfRelationQuery = """
+                        MATCH (s:ShelfV0 {id:$shelfId})-[:HAS_SHELF_POSITION]->()
+                        RETURN count(*) > 0 AS existingShelfRelations;
+                        """;
+                boolean numRelations = tx.run(checkExistingShelfRelationQuery,
+                        Values.parameters("shelfId", shelfId, "shelfPositionId", shelfPositionId)).single()
+                        .get("existingShelfRelations").asBoolean();
+                if (numRelations) {
+                    throw new RuntimeException(
+                            "There is already an existing relationship between specified shelf node and other shelf position node");
+                }
+
                 return null;
             });
 
