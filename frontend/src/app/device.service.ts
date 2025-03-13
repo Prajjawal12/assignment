@@ -23,7 +23,7 @@ export class DeviceService {
   deleteDevice(id: number): Observable<Device> {
     return this.http.delete<Device>(`${this.apiUrl}/${id}`)
   }
-  getAllDevices(): Observable<Device[]> {
-    return this.http.get<Device[]>(`${this.apiUrl}/list`);
-  }
+  // getAllDevices(): Observable<Device[]> {
+  //   return this.http.get<Device[]>(`${this.apiUrl}/list`);
+  // }
 }

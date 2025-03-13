@@ -12,9 +12,9 @@ public class ShelfV0 {
 
     @Id
     @GeneratedValue
-    private Long shelfId;
+    private Long id;
 
-    private String shelfName;
+    private String name;
 
     private String shelfType;
 }

@@ -27,8 +27,8 @@ export class InventoryComponent {
   deviceId: number = NaN;
   sheflv0Id: number = NaN;
   shelfPositionv0Id: number = NaN;
-  shelfv0 = { id: NaN, name: '', shelfType: '', shelfPositionId: NaN }
-  shelfPositionv0 = { id: NaN, name: '', deviceId: NaN }
+  shelfv0 = { id: NaN, name: '', shelfType: '' }
+  shelfPositionv0 = { id: NaN, name: '' }
 
 
   showSaveShelfForm() {
@@ -60,8 +60,8 @@ export class InventoryComponent {
     this.deviceId = NaN;
     this.sheflv0Id = NaN;
     this.shelfPositionv0Id = NaN;
-    this.shelfv0 = { id: NaN, name: '', shelfType: '', shelfPositionId: NaN }
-    this.shelfPositionv0 = { id: NaN, name: '', deviceId: NaN }
+    this.shelfv0 = { id: NaN, name: '', shelfType: '' }
+    this.shelfPositionv0 = { id: NaN, name: '' }
   }
   onSubmit() {
     if (this.formType === 'saveShelf') {

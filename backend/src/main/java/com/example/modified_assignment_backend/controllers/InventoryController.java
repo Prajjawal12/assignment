@@ -3,6 +3,8 @@ package com.example.modified_assignment_backend.controllers;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,54 +22,45 @@ import com.example.modified_assignment_backend.service.InventoryServiceImplement
 @RestController
 @RequestMapping("/api/inventory")
 public class InventoryController {
+    private static final Logger logger = LoggerFactory.getLogger(InventoryController.class);
     @Autowired
     private InventoryServiceImplementation inventoryServiceImplementation;
 
     // Saves a new shelf to the inventory
     @PostMapping("/shelf")
     public ResponseEntity<Map<String, Object>> saveShelf(@RequestBody ShelfV0 shelf) throws Exception {
-        try {
-            Map<String, Object> result = inventoryServiceImplementation.saveShelf(shelf);
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            throw new Exception("Error occurred while saving shelf: " + e.getMessage());
-        }
+        logger.warn("Value of shelf coming from frontend is  {}", shelf);
+        Map<String, Object> result = inventoryServiceImplementation.saveShelf(shelf);
+        return ResponseEntity.ok(result);
+
     }
 
     // Retrieves a shelf by its ID from the inventory
     @GetMapping("/shelf/{shelfId}")
     public ResponseEntity<Map<String, Object>> getShelf(@PathVariable Long shelfId) throws Exception {
-        try {
-            Map<String, Object> result = inventoryServiceImplementation.getShelf(shelfId);
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            throw new Exception("Error occurred while retrieving shelf with ID " + shelfId + ": " + e.getMessage());
-        }
+
+        Map<String, Object> result = inventoryServiceImplementation.getShelf(shelfId);
+        return ResponseEntity.ok(result);
+
     }
 
     // Saves a new shelf position to the inventory
     @PostMapping("/shelf-position")
     public ResponseEntity<Map<String, Object>> saveShelfPosition(@RequestBody ShelfPositionV0 shelfPosition)
             throws Exception {
-        try {
-            Map<String, Object> result = inventoryServiceImplementation.saveShelfPosition(shelfPosition);
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            throw new Exception("Error occurred while saving shelf position: " + e.getMessage());
-        }
+
+        Map<String, Object> result = inventoryServiceImplementation.saveShelfPosition(shelfPosition);
+        return ResponseEntity.ok(result);
+
     }
 
     // Retrieves a shelf position by its ID from the inventory
     @GetMapping("/shelf-position/{shelfPositionId}")
     public ResponseEntity<Map<String, Object>> getShelfPosition(@PathVariable long shelfPositionId) throws Exception {
-        try {
-            Map<String, Object> result = inventoryServiceImplementation.getShelfPosition(shelfPositionId);
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            throw new Exception(
-                    "Error occurred while retrieving shelf position with ID " + shelfPositionId + ": "
-                            + e.getMessage());
-        }
+
+        Map<String, Object> result = inventoryServiceImplementation.getShelfPosition(shelfPositionId);
+        return ResponseEntity.ok(result);
+
     }
 
     // Adds a shelf position to a device

@@ -12,7 +12,7 @@ public class ShelfPositionV0 {
 
     @Id
     @GeneratedValue
-    private Long shelfPositionId;
+    private Long id;
 
-    private String shelfPositionName;
+    private String name;
 }

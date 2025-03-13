@@ -10,6 +10,8 @@ import org.neo4j.driver.Record;
 import org.neo4j.driver.Result;
 import org.neo4j.driver.Session;
 import org.neo4j.driver.Values;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -20,7 +22,7 @@ import com.example.modified_assignment_backend.entity.ShelfV0;
 
 @Service
 public class InventoryServiceImplementation implements InventoryService {
-
+    public static final Logger logger = LoggerFactory.getLogger(InventoryServiceImplementation.class);
     @Autowired
     private Driver driver;
 
@@ -34,12 +36,13 @@ public class InventoryServiceImplementation implements InventoryService {
                         RETURN s AS savedShelf;
                         """;
 
+                logger.info("value of sheld id here is {}", shelf.getId());
                 Result result = tx.run(query,
-                        Values.parameters("shelfId", shelf.getShelfId(), "shelfName", shelf.getShelfName(),
+                        Values.parameters("shelfId", shelf.getId(), "shelfName", shelf.getName(),
                                 "shelfType", shelf.getShelfType()));
 
                 if (!result.hasNext()) {
-                    throw new RecordNotFoundException("Failed to save Shelf with ID: " + shelf.getShelfId());
+                    throw new RecordNotFoundException("Failed to save Shelf with ID: " + shelf.getId());
                 }
 
                 return result.single().get("savedShelf").asNode().asMap();
@@ -77,12 +80,12 @@ public class InventoryServiceImplementation implements InventoryService {
                            """;
 
                 Result result = tx.run(query, Values.parameters(
-                        "shelfPositionId", shelfPositionV0.getShelfPositionId(),
-                        "shelfPositionName", shelfPositionV0.getShelfPositionName()));
+                        "shelfPositionId", shelfPositionV0.getId(),
+                        "shelfPositionName", shelfPositionV0.getName()));
 
                 if (!result.hasNext()) {
                     throw new RecordNotFoundException(
-                            "Failed to save Shelf Position with ID: " + shelfPositionV0.getShelfPositionId());
+                            "Failed to save Shelf Position with ID: " + shelfPositionV0.getId());
                 }
 
                 return result.single().get("shelfPositionName").asNode().asMap();

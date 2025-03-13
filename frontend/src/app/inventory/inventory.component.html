@@ -15,7 +15,7 @@
                 Save Shelf
             </h2>
             <form>
-                <input type="text" placeholder="ID" [(ngModel)]="shelfv0.id" name="id" required>
+                <input type="number" placeholder="ID" [(ngModel)]="shelfv0.id" name="id" required>
                 <br>
                 <input type="text" [(ngModel)]="shelfv0.name" placeholder="Shelf Name" name="name" required>
                 <br>
@@ -30,7 +30,7 @@
         <ng-container *ngIf="formType === 'saveShelfPosition'">
             <h2>Save Shelf Position</h2>
             <form>
-                <input type="text" [(ngModel)]="shelfPositionv0.id" name="id" required>
+                <input type="number" [(ngModel)]="shelfPositionv0.id" name="id" required>
                 <br>
                 <input type="text" [(ngModel)]="shelfPositionv0.name" name="name" required>
                 <br>
