@@ -1,18 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { DeviceListComponent } from './device-list.component';
+import { SaveShelfComponent } from './save-shelf.component';
 
-describe('DeviceListComponent', () => {
-  let component: DeviceListComponent;
-  let fixture: ComponentFixture<DeviceListComponent>;
+describe('SaveShelfComponent', () => {
+  let component: SaveShelfComponent;
+  let fixture: ComponentFixture<SaveShelfComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [DeviceListComponent]
+      imports: [SaveShelfComponent]
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(DeviceListComponent);
+    fixture = TestBed.createComponent(SaveShelfComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

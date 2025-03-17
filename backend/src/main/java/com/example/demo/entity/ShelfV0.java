@@ -20,6 +20,4 @@ public class ShelfV0 {
 
   private Long associatedShelfPositions;
 
-  private long shelfPositionId;
-
 }

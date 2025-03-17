@@ -1,59 +1,45 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { ShelfV0 } from './inventory/shelfv0.model'
-import { ShelfPositionV0 } from './inventory/shelfPositionv0.model'
-import { catchError, EMPTY, Observable } from 'rxjs';
+import { Shelf } from './models/shelf.model';
+import { Observable } from 'rxjs';
+import { ConnectedPosition } from './models/connected-position.model';
+import { ShelfPosition } from './models/shelf-position.model';
+
 @Injectable({
   providedIn: 'root'
 })
 export class InventoryService {
-  private apiUrl = 'http://localhost:8080/api/inventory'
+
+  private apiUrl = 'http://localhost:8080/api/inventory';
   constructor(private http: HttpClient) { }
 
-  saveShelf(shelfV0: ShelfV0): Observable<ShelfV0> {
-    return this.http.post<ShelfV0>(`${this.apiUrl}/shelf`, shelfV0);
+  saveShelf(shelf: Shelf, confirmModification: boolean): Observable<Shelf> {
+    return this.http.post<Shelf>(`${this.apiUrl}/shelf?confirmModification=${confirmModification}`, shelf)
   }
 
-  getShelf(id: number): Observable<ShelfV0> {
-    return this.http.get<ShelfV0>(`${this.apiUrl}/shelf/${id}`)
-  }
-  saveShelfPosition(shelfPositionV0: ShelfPositionV0): Observable<ShelfPositionV0> {
-    return this.http.post<ShelfPositionV0>(`${this.apiUrl}/shelf-position`, shelfPositionV0);
+  getShelfById(shelfId: number): Observable<Shelf> {
+    return this.http.get<Shelf>(`${this.apiUrl}/shelf/${shelfId}`)
   }
 
-  getShelfPosition(id: number): Observable<ShelfPositionV0> {
-    return this.http.get<ShelfPositionV0>(`${this.apiUrl}/shelf-position/${id}`);
-  }
-  addShelfPositionToDevice(deviceId: number, shelfPositionId: number): Observable<void> {
-    const params = new HttpParams()
-      .set('deviceId', deviceId.toString())
-      .set('shelfPositionId', shelfPositionId.toString())
+  addDeviceToShelfPosition(deviceId: number, shelfId: number, position: number): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/connected-positions?deviceId=${deviceId}&shelfId=${shelfId}&position=${position}`, null)
 
-    return this.http.post<void>(`${this.apiUrl}/add-shelf-position-to-device`, null, { params }).pipe(
-      catchError((error) => {
-        console.error("Error adding shelf position to device:", error)
-        return EMPTY;
-      })
-    )
-  }
-  addShelfToShelfPosition(shelfId: number, shelfPositionId: number): Observable<void> {
-    const params = new HttpParams().set('shelfId', shelfId.toString()).set('shelfPositionId', shelfPositionId.toString())
-
-
-    return this.http.post<void>(`${this.apiUrl}/add-shelf-to-shelf-position`, null, { params }).pipe(
-      catchError((error) => {
-        console.error('Error adding shelf to shelf-position: ', error)
-        return EMPTY;
-      })
-    )
-  }
-  getAllShelfNodes(): Observable<ShelfV0[]> {
-    return this.http.get<ShelfV0[]>(`${this.apiUrl}/shelf/list`)
   }
 
-  getAllShelfPositionNodes(): Observable<ShelfPositionV0[]> {
-    return this.http.get<ShelfPositionV0[]>(`${this.apiUrl}/shelf-position/list`)
+  removeDeviceFromShelfPosition(deviceId: number, shelfId: number, position: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/connected-positions?deviceId=${deviceId}&shelfId=${shelfId}&position=${position}`)
   }
 
 
+  getAllConnectedShelfPositions(): Observable<ConnectedPosition[]> {
+    return this.http.get<ConnectedPosition[]>(`${this.apiUrl}/connected-positions`)
+  }
+
+  getAvailableShelfPositions(shelfId: number): Observable<ShelfPosition[]> {
+    return this.http.get<ShelfPosition[]>(`${this.apiUrl}/shelves/${shelfId}/available-positions`)
+  }
+
+  getAllShelves(): Observable<Shelf[]> {
+    return this.http.get<Shelf[]>(`${this.apiUrl}/shelves`)
+  }
 }

@@ -1,0 +1,45 @@
+<div class="display-shelf-nodes-container">
+    <h2>Display Shelf Nodes</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Device ID</th>
+                <th>Shelf ID</th>
+                <th>Positions</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            <tr *ngFor="let position of connectedPositions">
+                <td>{{position.deviceId}}</td>
+                <td>{{position.shelfId}}</td>
+                <td>{{position.position}}</td>
+                <td><button class="delete-connection" (click)="deletedDeviceFromShelfPosition(position)">Delete
+                        Connection</button>
+                    <button class="delete-device" (click)="deleteDevice(position.deviceId)">Delete Device</button>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>Add Connection</h3>
+
+    <select [(ngModel)]="selectedDevice" (change)="fetchShelves()">
+        <option [ngValue]="null">Select Device</option>
+        <option *ngFor="let device of devices" [ngValue]="device.id">{{device.id}} : {{device.name}}</option>
+    </select>
+
+    <select [(ngModel)]="selectedShelf" (change)="fetchShelfPositions()">
+        <option [ngValue]="null">Select Shelf</option>
+        <option *ngFor="let shelf of shelves" [ngValue]="shelf.id">{{shelf.id}} : {{shelf.name}}</option>
+    </select>
+
+    <select [(ngModel)]="selectedPosition">
+        <option [ngValue]="null">Select Position</option>
+        <option *ngFor="let position of shelfPosition" [ngValue]="position.position">{{position.position}}</option>
+    </select>
+
+    <button (click)="addConnection()">Add Connection</button>
+</div>

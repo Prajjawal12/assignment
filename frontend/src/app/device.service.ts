@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
-import { Device } from './device/device.model';
+import { Device } from './models/device.model';
+import { catchError, Observable } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
@@ -9,21 +9,19 @@ import { Device } from './device/device.model';
 export class DeviceService {
   private apiUrl = 'http://localhost:8080/api/device';
   constructor(private http: HttpClient) { }
-
-  getDevice(id: number): Observable<Device> {
-    return this.http.get<Device>(`${this.apiUrl}/${id}`);
+  saveDevice(device: Device, confirmModification: boolean): Observable<Device> {
+    return this.http.post<Device>(`${this.apiUrl}/save?confirmModification=${confirmModification}`, device);
   }
 
-  saveDevice(device: Device): Observable<Device> {
-    return this.http.post<Device>(`${this.apiUrl}/save`, device);
+  getDeviceById(deviceId: number): Observable<Device> {
+    return this.http.get<Device>(`${this.apiUrl}/fetch/${deviceId}`)
   }
-  modifyDevice(id: number, device: Device): Observable<Device> {
-    return this.http.put<Device>(`${this.apiUrl}/${id}`, device)
+
+  deleteDevice(deviceId: number): Observable<number> {
+    return this.http.delete<number>(`${this.apiUrl}/delete/${deviceId}`)
   }
-  deleteDevice(id: number): Observable<Device> {
-    return this.http.delete<Device>(`${this.apiUrl}/${id}`)
-  }
-  getAllDevices(): Observable<Device[]> {
-    return this.http.get<Device[]>(`${this.apiUrl}/list`);
+
+  listAllDevices(): Observable<Device[]> {
+    return this.http.get<Device[]>(`${this.apiUrl}/list`)
   }
 }

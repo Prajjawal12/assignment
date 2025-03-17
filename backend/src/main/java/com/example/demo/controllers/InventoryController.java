@@ -27,6 +27,11 @@ public class InventoryController {
 
   }
 
+  @RequestMapping(value = "/shelf/{shelfId}", method = RequestMethod.GET)
+  public ResponseEntity<Map<String, Object>> getShelfById(@PathVariable Long shelfId) {
+    return ResponseEntity.ok(inventoryServiceImplementation.getShelfById(shelfId));
+  }
+
   // @GetMapping("/connected-positions")
   @RequestMapping(value = "/connected-positions", method = RequestMethod.GET)
   public ResponseEntity<List<Map<String, Object>>> getAllConnectedPositions() {
@@ -55,4 +60,8 @@ public class InventoryController {
     return ResponseEntity.ok().build();
   }
 
+  @RequestMapping(value = "/shelves", method = RequestMethod.GET)
+  public ResponseEntity<List<Map<String, Object>>> getAllShelfNodes() {
+    return ResponseEntity.ok(inventoryServiceImplementation.getAllShelves());
+  }
 }

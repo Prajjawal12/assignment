@@ -13,6 +13,7 @@ import org.neo4j.driver.Values;
 import org.neo4j.driver.types.Node;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.example.demo.customExceptions.DeviceNotFoundException;
 import com.example.demo.entity.Device;
@@ -24,13 +25,14 @@ public class DeviceServiceImplementation implements DeviceService {
   private Driver driver;
 
   @Override
+  @Transactional
   public void modifyDevice(Long id, Device device) {
     try (Session session = driver.session()) {
       session.executeWriteWithoutResult(tx -> {
         String query = """
             MATCH (d: Device {id:$deviceId})
             WHERE d.isDeleted = 'N'
-            SET d.deviceName = $deviceName, d.deviceType = $deviceType, d.credentialsModifiedAt = datetime()
+            SET d.name = $deviceName, d.deviceType = $deviceType, d.credentialsModifiedAt = datetime()
             RETURN d;
             """;
 
@@ -41,6 +43,7 @@ public class DeviceServiceImplementation implements DeviceService {
   }
 
   @Override
+  @Transactional
   public void createDevice(Device device) {
     try (Session session = driver.session()) {
       session.executeWriteWithoutResult(tx -> {
@@ -57,6 +60,7 @@ public class DeviceServiceImplementation implements DeviceService {
   }
 
   @Override
+  @Transactional(readOnly = true)
   public Map<String, Object> getDeviceById(Long deviceId) {
     try (Session session = driver.session()) {
       return session.executeRead(tx -> {
@@ -76,6 +80,7 @@ public class DeviceServiceImplementation implements DeviceService {
   }
 
   @Override
+  @Transactional
   public Map<String, Object> saveDevice(Device device, boolean confirmModification) {
 
     if (confirmModification) {
@@ -88,6 +93,7 @@ public class DeviceServiceImplementation implements DeviceService {
   }
 
   @Override
+  @Transactional
   public Long deleteDevice(Long deviceId) {
     try (Session session = driver.session()) {
       return session.executeWrite(tx -> {
@@ -112,12 +118,16 @@ public class DeviceServiceImplementation implements DeviceService {
   }
 
   @Override
+  @Transactional(readOnly = true)
   public List<Map<String, Object>> listAllDevices() {
     try (Session session = driver.session()) {
       return session.executeRead(tx -> {
         String query = """
             MATCH (d:Device)
-            WHERE d.isDeleted = 'N'
+            WHERE d.isDeleted = 'N' AND NOT EXISTS
+            {
+            (d)-[r1:HAS_SHELF {isDeleted:'N'}]->(s:ShelfV0)
+            }
             RETURN d;
             """;
 

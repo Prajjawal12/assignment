@@ -1,18 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { HomeComponent } from './home.component';
+import { SaveDeviceComponent } from './save-device.component';
 
-describe('HomeComponent', () => {
-  let component: HomeComponent;
-  let fixture: ComponentFixture<HomeComponent>;
+describe('SaveDeviceComponent', () => {
+  let component: SaveDeviceComponent;
+  let fixture: ComponentFixture<SaveDeviceComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [HomeComponent]
+      imports: [SaveDeviceComponent]
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(HomeComponent);
+    fixture = TestBed.createComponent(SaveDeviceComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

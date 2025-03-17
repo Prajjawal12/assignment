@@ -1,23 +1,38 @@
 .navbar {
-    background-color: #f2f2f2;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px;
+    background-color: #c8c5b3;
+    padding: 10px 20px;
 }
 
 .logo {
-    font-size: large;
-    font-weight: normal;
-    text-decoration-line: none;
-    color: rgb(40, 74, 75);
+    font-weight: bold;
+    font-size: 1.2rem;
+    font-style: italic;
+    color: rgb(50, 44, 44);
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: 15px;
 }
 
-.list-button {
-    border: none;
-    cursor: pointer;
+.logo:hover {
+    background-color: #5ea06e;
+    color: white;
+    font-weight: 400;
+}
+
+
+.nav-buttons button {
     margin-left: 10px;
-    font-weight: bolder;
-    text-decoration-line: none;
-    color: rgb(84, 11, 29);
+    padding: 8px 12px;
+    cursor: pointer;
+    border: none;
+    border-radius: 10px;
+    background-color: rgba(8, 35, 35, 0.553);
+    color: white;
+}
+
+.nav-buttons button:hover {
+    background-color: #5ea06e;
 }

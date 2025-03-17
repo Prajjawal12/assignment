@@ -1,17 +1,11 @@
 import { Routes } from '@angular/router';
-import path from 'node:path';
-import { HomeComponent } from './home/home.component';
-import { DeviceComponent } from './device/device.component';
-import { InventoryComponent } from './inventory/inventory.component';
-import { DeviceListComponent } from './navbar/listing/device-list/device-list.component';
-import { ShelfPositionsListComponent } from './navbar/listing/shelf-positions-list/shelf-positions-list.component';
-import { ShelfListComponent } from './navbar/listing/shelf-list/shelf-list.component';
+import { SaveDeviceComponent } from './save-device/save-device.component';
+import { SaveShelfComponent } from './save-shelf/save-shelf.component';
+import { DisplayShelfNodesComponent } from './display-shelf-nodes/display-shelf-nodes.component';
+
 export const routes: Routes = [
-  { path: '', component: HomeComponent },
-  { path: 'home', component: HomeComponent },
-  { path: 'device', component: DeviceComponent },
-  { path: 'inventory', component: InventoryComponent },
-  { path: 'device-list', component: DeviceListComponent },
-  { path: 'shelf-position-list', component: ShelfPositionsListComponent },
-  { path: 'shelf-list', component: ShelfListComponent }
+    { path: 'save-device', component: SaveDeviceComponent },
+    { path: 'save-shelf', component: SaveShelfComponent },
+    { path: 'display-shelf-nodes', component: DisplayShelfNodesComponent },
+    { path: '', redirectTo: '/display-shelf-nodes', pathMatch: 'full' }
 ];

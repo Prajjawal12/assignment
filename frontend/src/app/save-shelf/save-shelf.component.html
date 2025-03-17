@@ -1,0 +1,26 @@
+<div class="save-shelf-container">
+    <h2>Save Shelf</h2>
+    <form [formGroup]="shelfForm" (ngSubmit)="onSubmit()">
+        <div class="form-group">
+            <label for="id">Shelf ID:</label>
+            <input type="number" id="id" formControlName="id">
+        </div>
+
+
+        <div class="form-group">
+            <label for="name">Shelf Name:</label>
+            <input type="text" id="name" formControlName="name">
+        </div>
+
+        <div class="form-group">
+            <label for="name">Shelf Type:</label>
+            <input type="text" id="shelfType" formControlName="shelfType">
+        </div>
+        <div class="form-group">
+            <label for="associatedShelfPositions">Associated Shelf Positions</label>
+            <input type="number" id="associatedShelfPositions" formControlName="associatedShelfPositions">
+        </div>
+        <button type="submit">Save Shelf</button>
+
+    </form>
+</div>

@@ -1,0 +1,21 @@
+<div class="save-device-container">
+    <h2>Save Device</h2>
+
+    <form [formGroup]="deviceForm" (ngSubmit)="onSubmit()">
+        <div class="form-group">
+            <label for="id">Device ID:</label>
+            <input type="number" id="id" formControlName="id">
+        </div>
+
+        <div class="form-group">
+            <label for="name">Device Name:</label>
+            <input type="text" id="name" formControlName="name">
+        </div>
+
+        <div class="form-group">
+            <label for="deviceType">Device Type:</label>
+            <input type="text" id="deviceType" formControlName="deviceType">
+        </div>
+        <button type="submit">Save Device</button>
+    </form>
+</div>
