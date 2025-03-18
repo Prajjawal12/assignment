@@ -12,10 +12,10 @@ import org.neo4j.driver.Session;
 import org.neo4j.driver.Values;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
-import com.example.demo.customExceptions.DeviceAlreadyAssignedToShelfPositionException;
 import com.example.demo.customExceptions.ShelfNotFoundException;
-import com.example.demo.customExceptions.ShelfPositionAlreadyOccupiedException;
 import com.example.demo.entity.ShelfV0;
 
 @Service
@@ -25,6 +25,8 @@ public class InventoryServiceImplementation implements InventoryService {
   private Driver driver;
 
   @Override
+  @Transactional(propagation = Propagation.REQUIRED)
+
   public Map<String, Object> saveShelf(ShelfV0 shelf, boolean confirmModification) {
 
     if (confirmModification) {
@@ -37,6 +39,7 @@ public class InventoryServiceImplementation implements InventoryService {
   }
 
   @Override
+  @Transactional(propagation = Propagation.REQUIRED)
   public void createShelf(ShelfV0 shelf) {
     try (Session session = driver.session()) {
       session.executeWriteWithoutResult(tx -> {
@@ -62,6 +65,7 @@ public class InventoryServiceImplementation implements InventoryService {
   }
 
   @Override
+  @Transactional(propagation = Propagation.REQUIRED)
   public void modifyShelf(Long shelfId, ShelfV0 shelf) {
     try (Session session = driver.session()) {
       session.executeWriteWithoutResult(tx -> {
@@ -81,6 +85,7 @@ public class InventoryServiceImplementation implements InventoryService {
   }
 
   @Override
+  @Transactional(propagation = Propagation.SUPPORTS, readOnly = true)
   public Map<String, Object> getShelfById(Long shelfId) {
     try (Session session = driver.session()) {
       return session.executeRead(tx -> {
@@ -104,41 +109,10 @@ public class InventoryServiceImplementation implements InventoryService {
     }
   }
 
+  @Override
+  @Transactional(propagation = Propagation.REQUIRED)
   public void addDeviceToShelfPosition(Long deviceId, Long shelfId, Long position) {
     try (Session session = driver.session()) {
-      session.executeRead(tx -> {
-        String deviceConnectedQuery = """
-            MATCH (d:Device {id: $deviceId})-[r1:HAS_SHELF]->(s:ShelfV0 {id:$shelfId})-[r2:HAS_SHELF_POSITION]->(sp:ShelfPositionV0)
-            WHERE d.isDeleted = 'N' AND r1.isDeleted = 'N' AND r2.isDeleted = 'N'
-            RETURN COUNT(sp) > 0 AS deviceAlreadyConnected;
-            """;
-
-        Result checkResult = tx.run(deviceConnectedQuery,
-            Values.parameters("deviceId", deviceId, "shelfId", shelfId));
-        boolean deviceAlreadyAssigned = checkResult.single().get("deviceAlreadyConnected").asBoolean();
-        if (deviceAlreadyAssigned) {
-          throw new DeviceAlreadyAssignedToShelfPositionException(
-              "Device with ID: " + deviceId + " is already assigned to a shelf position on Shelf with ID "
-                  + shelfId);
-        }
-
-        String occupiedQuery = """
-            MATCH (s:ShelfV0 {id:$shelfId})-[r:HAS_SHELF_POSITION]->(sp:ShelfPositionV0 {position : $position})
-            WHERE sp.deviceAssigned IS NOT NULL
-            RETURN COUNT(sp) > 0 AS positionOccupied;
-
-             """;
-
-        Result occupiedResult = tx.run(occupiedQuery, Values.parameters("shelfId", shelfId, "position", position));
-        boolean positionOccupied = occupiedResult.single().get("positionOccupied").asBoolean();
-
-        if (positionOccupied) {
-          throw new ShelfPositionAlreadyOccupiedException("Shelf Position " + position + " belong to Shelf with ID "
-              + shelfId + " is already assigned to a device");
-        }
-
-        return null;
-      });
 
       session.executeWriteWithoutResult(tx -> {
         String assignDeviceToShelfQuery = """
@@ -164,6 +138,8 @@ public class InventoryServiceImplementation implements InventoryService {
     }
   }
 
+  @Override
+  @Transactional(propagation = Propagation.SUPPORTS, readOnly = true)
   public List<Map<String, Object>> getAllConnectedShelfPositions() {
     try (Session session = driver.session()) {
       return session.executeRead(tx -> {
@@ -188,11 +164,14 @@ public class InventoryServiceImplementation implements InventoryService {
     }
   }
 
+  @Override
+  @Transactional(propagation = Propagation.SUPPORTS, readOnly = true)
   public void removeDeviceFromShelfPosition(Long deviceId, Long shelfId, Long position) {
     try (Session session = driver.session()) {
       session.executeWriteWithoutResult(tx -> {
         String query = """
             MATCH (d:Device {id:$deviceId})-[r1:HAS_SHELF]->(s:ShelfV0 {id:$shelfId})-[r2:HAS_SHELF_POSITION]->(sp:ShelfPositionV0 {position:$position , deviceAssigned : $deviceId})
+            WHERE r1.isDeleted = 'N' AND r2.isDeleted = 'N' AND sp.deviceAssigned = d.id AND d.isDeleted = 'N'
             SET sp.deviceAssigned = null , r2.isDeleted = 'Y' , r1.isDeleted = 'Y'
                 """;
 
@@ -201,6 +180,8 @@ public class InventoryServiceImplementation implements InventoryService {
     }
   }
 
+  @Override
+  @Transactional(propagation = Propagation.SUPPORTS, readOnly = true)
   public List<Map<String, Object>> getAvailableShelfPositions(Long shelfId) {
     List<Map<String, Object>> availablePositions = new ArrayList<>();
 
@@ -225,12 +206,17 @@ public class InventoryServiceImplementation implements InventoryService {
     return availablePositions;
   }
 
+  @Override
+  @Transactional(propagation = Propagation.SUPPORTS, readOnly = true)
   public List<Map<String, Object>> getAllShelves() {
     try (Session session = driver.session()) {
       return session.executeRead(tx -> {
         String query = """
             MATCH (s:ShelfV0)
-            WHERE s.isDeleted = 'N'
+            WHERE s.isDeleted = 'N' AND EXISTS {
+            (s)-[r:HAS_SHELF_POSITION]->(sp)
+            WHERE r.isDeleted = 'Y' AND sp.deviceAssigned IS NULL
+            }
             RETURN s;
             """;
 

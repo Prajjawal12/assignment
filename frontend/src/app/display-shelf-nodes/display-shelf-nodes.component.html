@@ -16,9 +16,11 @@
                 <td>{{position.deviceId}}</td>
                 <td>{{position.shelfId}}</td>
                 <td>{{position.position}}</td>
-                <td><button class="delete-connection" (click)="deletedDeviceFromShelfPosition(position)">Delete
+                <td><button class="delete-connection" (click)="deletedDeviceFromShelfPosition(position)"
+                        (click)="reloadPage()">Delete
                         Connection</button>
-                    <button class="delete-device" (click)="deleteDevice(position.deviceId)">Delete Device</button>
+                    <button class="delete-device" (click)="deleteDevice(position.deviceId)"
+                        (click)="reloadPage()">Delete Device</button>
                 </td>
             </tr>
         </tbody>
@@ -41,5 +43,5 @@
         <option *ngFor="let position of shelfPosition" [ngValue]="position.position">{{position.position}}</option>
     </select>
 
-    <button (click)="addConnection()">Add Connection</button>
+    <button (click)="addConnection()" (click)="reloadPage()">Add Connection</button>
 </div>

@@ -8,6 +8,7 @@ import { InventoryService } from '../inventory.service';
 import { DeviceService } from '../device.service';
 import { NgFor } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ToastrService } from 'ngx-toastr';
 
 @Component({
   selector: 'app-display-shelf-nodes',
@@ -16,6 +17,8 @@ import { FormsModule } from '@angular/forms';
   styleUrl: './display-shelf-nodes.component.css'
 })
 export class DisplayShelfNodesComponent implements OnInit, OnDestroy {
+
+
   connectedPositions: ConnectedPosition[] = []
   devices: Device[] = []
   shelves: Shelf[] = []
@@ -28,7 +31,7 @@ export class DisplayShelfNodesComponent implements OnInit, OnDestroy {
 
   private subscriptions: Subscription[] = []
 
-  constructor(private inventoryService: InventoryService, private deviceService: DeviceService) { }
+  constructor(private inventoryService: InventoryService, private deviceService: DeviceService, private ts: ToastrService) { }
   ngOnDestroy(): void {
     this.subscriptions.forEach(sub => sub.unsubscribe());
   }
@@ -54,7 +57,9 @@ export class DisplayShelfNodesComponent implements OnInit, OnDestroy {
         this.devices = devices;
       },
       error: (error) => {
-        alert('Error fetching devices :' + error)
+        this.ts.info(JSON.stringify(error.error + " which are ready to be connected."))
+
+        // alert('Error fetching devices :' + JSON.stringify(error.error + " which are ready to be connected."))
       }
     }))
   }
@@ -64,6 +69,7 @@ export class DisplayShelfNodesComponent implements OnInit, OnDestroy {
       next: () => {
         alert(`Device ${position.deviceId} is succesfully removed from position ${position.position} connected to shelf with id ${position.shelfId}`)
         this.fetchConnectedPositions();
+
       },
       error: (error) => {
         alert(`Error in performing deletetion ${error}`)
@@ -128,5 +134,7 @@ export class DisplayShelfNodesComponent implements OnInit, OnDestroy {
       }))
     }
   }
-
+  reloadPage() {
+    window.location.reload()
+  }
 }

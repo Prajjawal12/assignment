@@ -13,6 +13,7 @@ import org.neo4j.driver.Values;
 import org.neo4j.driver.types.Node;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.demo.customExceptions.DeviceNotFoundException;
@@ -25,7 +26,7 @@ public class DeviceServiceImplementation implements DeviceService {
   private Driver driver;
 
   @Override
-  @Transactional
+  @Transactional(propagation = Propagation.REQUIRED)
   public void modifyDevice(Long id, Device device) {
     try (Session session = driver.session()) {
       session.executeWriteWithoutResult(tx -> {
@@ -43,7 +44,7 @@ public class DeviceServiceImplementation implements DeviceService {
   }
 
   @Override
-  @Transactional
+  @Transactional(propagation = Propagation.REQUIRED)
   public void createDevice(Device device) {
     try (Session session = driver.session()) {
       session.executeWriteWithoutResult(tx -> {
@@ -60,7 +61,7 @@ public class DeviceServiceImplementation implements DeviceService {
   }
 
   @Override
-  @Transactional(readOnly = true)
+  @Transactional(propagation = Propagation.SUPPORTS, readOnly = true)
   public Map<String, Object> getDeviceById(Long deviceId) {
     try (Session session = driver.session()) {
       return session.executeRead(tx -> {
@@ -80,7 +81,7 @@ public class DeviceServiceImplementation implements DeviceService {
   }
 
   @Override
-  @Transactional
+  @Transactional(propagation = Propagation.REQUIRED)
   public Map<String, Object> saveDevice(Device device, boolean confirmModification) {
 
     if (confirmModification) {
@@ -93,7 +94,7 @@ public class DeviceServiceImplementation implements DeviceService {
   }
 
   @Override
-  @Transactional
+  @Transactional(propagation = Propagation.REQUIRED)
   public Long deleteDevice(Long deviceId) {
     try (Session session = driver.session()) {
       return session.executeWrite(tx -> {
@@ -102,8 +103,8 @@ public class DeviceServiceImplementation implements DeviceService {
             WHERE d.isDeleted = 'N'
             SET d.isDeleted = 'Y'
             WITH d
-            OPTIONAL MATCH (d:Device {id:$deviceId})-[r1:HAS_SHELF]->(s:ShelfV0)-[r2:HAS_SHELF_POSITION]->(sp:ShelfPositionV0)
-            WHERE r1 IS NOT NULL AND r2 IS NOT NULL AND sp.deviceAssigned = d.id
+            OPTIONAL MATCH (d)-[r1:HAS_SHELF]->(s:ShelfV0)-[r2:HAS_SHELF_POSITION]->(sp:ShelfPositionV0)
+            WHERE r1.isDeleted = 'N' AND r2.isDeleted = 'N' AND sp.deviceAssigned = d.id
             SET r1.isDeleted = 'Y' , r2.isDeleted = 'Y' , sp.deviceAssigned = null
             RETURN d.id AS deletedDeviceId;
             """;
@@ -118,7 +119,7 @@ public class DeviceServiceImplementation implements DeviceService {
   }
 
   @Override
-  @Transactional(readOnly = true)
+  @Transactional(propagation = Propagation.SUPPORTS, readOnly = true)
   public List<Map<String, Object>> listAllDevices() {
     try (Session session = driver.session()) {
       return session.executeRead(tx -> {
@@ -126,7 +127,7 @@ public class DeviceServiceImplementation implements DeviceService {
             MATCH (d:Device)
             WHERE d.isDeleted = 'N' AND NOT EXISTS
             {
-            (d)-[r1:HAS_SHELF {isDeleted:'N'}]->(s:ShelfV0)
+            (d)-[r1:HAS_SHELF {isDeleted:'N'}]->(s:ShelfV0)-[r2:HAS_SHELF_POSITION {isDeleted:'N'}]->(sp:ShelfPositionV0 {deviceAssigned : d.id})
             }
             RETURN d;
             """;
